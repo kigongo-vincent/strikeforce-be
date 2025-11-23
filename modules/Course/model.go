@@ -7,7 +7,7 @@ import (
 
 type Course struct {
 	gorm.Model
-	Name         string                 `json:"name"`
-	DepartmentID int                    `json:"department_id"`
-	Department   *department.Department `json:"Department" gorm:"foreignKey:DepartmentID"`
+	Name         string                `json:"name"`
+	DepartmentID uint                  `json:"department_id"`
+	Department   department.Department `json:"Department" gorm:"foreignKey:DepartmentID"`
 }

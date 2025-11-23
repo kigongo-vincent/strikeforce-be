@@ -11,4 +11,13 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 	projects.Post("/", func(c *fiber.Ctx) error {
 		return Create(c, db)
 	})
+	projects.Get("/mine", func(c *fiber.Ctx) error {
+		return GetByOwner(c, db)
+	})
+	projects.Put("/update", func(c *fiber.Ctx) error {
+		return Update(c, db)
+	})
+	projects.Put("/update-status", func(c *fiber.Ctx) error {
+		return UpdateStatus(c, db)
+	})
 }

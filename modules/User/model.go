@@ -22,6 +22,7 @@ type User struct {
 	Password string  `json:"password"`
 	Profile  Profile `json:"profile" gorm:"embedded;embeddedPrefix:profile_"`
 	Groups   []Group `json:"groups" gorm:"many2many:user_groups"`
+	CourseID uint    `json:"course_id"`
 }
 type Group struct {
 	gorm.Model

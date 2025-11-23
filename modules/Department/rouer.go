@@ -13,4 +13,8 @@ func RegisterRRoutes(r fiber.Router, db *gorm.DB) {
 		return Create(c, db)
 	})
 
+	departments.Get("/", func(c *fiber.Ctx) error {
+		return FindByOrg(c, db)
+	})
+
 }

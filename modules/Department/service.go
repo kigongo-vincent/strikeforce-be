@@ -2,6 +2,7 @@ package department
 
 import (
 	"fmt"
+	"strconv"
 
 	organization "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Organization"
 	"github.com/gofiber/fiber/v2"
@@ -42,5 +43,25 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 	fmt.Println(data)
 
 	return c.Status(201).JSON(data)
+
+}
+
+func FindByOrg(c *fiber.Ctx, db *gorm.DB) error {
+
+	org := c.Query("org")
+
+	OrgID, err := strconv.ParseUint(org, 10, 64)
+
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "invalid organization"})
+	}
+
+	var depts []Department
+
+	if err := db.Where("organization_id = ?", OrgID).Find(&depts).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to get departments"})
+	}
+
+	return c.JSON(fiber.Map{"data": depts})
 
 }

@@ -1,6 +1,8 @@
 package organization
 
 import (
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -25,4 +27,16 @@ func Register(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	return c.Status(201).JSON(fiber.Map{"msg": org.Type + " created successfully", "data": org})
+}
+
+func GetByType(c *fiber.Ctx, db *gorm.DB, t string) error {
+
+	var orgs []Organization
+	fmt.Println(t)
+	if err := db.Where("type = ?", t).Find(&orgs).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to fetch"})
+	}
+
+	return c.JSON(fiber.Map{"data": orgs})
+
 }

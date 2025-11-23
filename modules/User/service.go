@@ -155,3 +155,97 @@ func SignUp(c *fiber.Ctx, db *gorm.DB) error {
 	return Login(c, db)
 
 }
+
+func FindOne(c *fiber.Ctx, db *gorm.DB, user_id uint) (User, error) {
+	var user User
+	if err := db.Where("id = ?", user_id).First(&user).Error; err != nil {
+		return user, err
+	}
+	return user, nil
+}
+
+func CreateGroup(c *fiber.Ctx, db *gorm.DB) error {
+
+	var group Group
+
+	if err := c.BodyParser(&group); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "invalid group data"})
+	}
+
+	group.UserID = c.Locals("user_id").(uint)
+
+	if err := db.Create(&group).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to add group"})
+	}
+
+	var members []User
+
+	for _, u := range group.Members {
+		member, _ := FindOne(c, db, u.ID)
+		members = append(members, member)
+	}
+
+	group.Members = members
+
+	return c.Status(201).JSON(fiber.Map{"data": group})
+}
+
+func AddToGroup(c *fiber.Ctx, db *gorm.DB) error {
+
+	type Body struct {
+		User  uint `json:"user"`
+		Group uint `json:"group"`
+	}
+
+	var body Body
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "invalid input"})
+	}
+
+	var group Group
+	if err := db.First(&group, body.Group).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to get group"})
+	}
+
+	var user User
+	if err := db.First(&user, body.User).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to get user"})
+	}
+
+	if err := db.Model(&group).Association("Members").Append(&user); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to add user to group" + err.Error()})
+	}
+
+	return c.SendStatus(201)
+}
+
+func RemoveFromGroup(c *fiber.Ctx, db *gorm.DB) error {
+
+	type Body struct {
+		Group uint `json:"group"`
+		User  uint `json:"user"`
+	}
+
+	var body Body
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "invalid input"})
+	}
+
+	var group Group
+	if err := db.First(&group, body.Group).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to load group"})
+	}
+
+	var user User
+	if err := db.First(&user, body.User).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to load user"})
+	}
+
+	if err := db.Model(&group).Association("Members").Delete(&user); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to remove user"})
+	}
+
+	return c.SendStatus(200)
+
+}

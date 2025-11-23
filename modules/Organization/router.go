@@ -13,5 +13,11 @@ func RegisterRoutes(router fiber.Router, db *gorm.DB) {
 	org.Post("/", func(c *fiber.Ctx) error {
 		return Register(c, db)
 	})
+	org.Get("/", func(c *fiber.Ctx) error {
+
+		t := c.Query("type")
+
+		return GetByType(c, db, t)
+	})
 
 }

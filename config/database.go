@@ -14,6 +14,7 @@ import (
 	notification "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Notification"
 	organization "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Organization"
 	project "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Project"
+	student "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Student"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -35,7 +36,7 @@ func ConnectToDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	migrationErr := db.AutoMigrate(&user.User{}, &organization.Organization{}, &course.Course{}, &department.Department{}, &project.Project{}, &milestone.Milestone{}, &application.Application{}, &chat.Message{}, &dispute.Dispute{}, &invitation.Invitation{}, &notification.Notification{})
+	migrationErr := db.AutoMigrate(&user.User{}, &organization.Organization{}, &course.Course{}, &department.Department{}, &project.Project{}, &milestone.Milestone{}, &application.Application{}, &chat.Message{}, &dispute.Dispute{}, &invitation.Invitation{}, &notification.Notification{}, &student.Student{})
 
 	if migrationErr != nil {
 		fmt.Println("Small migration issue: [DB HAS DATA]")

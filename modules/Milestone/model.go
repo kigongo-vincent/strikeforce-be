@@ -7,7 +7,7 @@ import (
 
 type Milestone struct {
 	gorm.Model
-	ProjectID          int             `json:"project_id"`
+	ProjectID          uint            `json:"project_id"`
 	Project            project.Project `json:"project" gorm:"foreignKey:ProjectID"`
 	Title              string          `json:"title"`
 	Scope              string          `json:"scope"`

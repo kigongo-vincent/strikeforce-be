@@ -6,9 +6,12 @@ import (
 	"os"
 
 	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/config"
+	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
+	milestone "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Milestone"
 	organization "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Organization"
 	project "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Project"
+	student "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Student"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -39,6 +42,9 @@ func main() {
 	organization.RegisterRoutes(apiV1, DB)
 	department.RegisterRRoutes(apiV1, DB)
 	project.RegisterRoutes(apiV1, DB)
+	course.RegisterRoutes(apiV1, DB)
+	student.RegisterRoutes(apiV1, DB)
+	milestone.RegisterRoutes(apiV1, DB)
 
 	fmt.Println("server running on port " + os.Getenv("APP_PORT"))
 	app.Listen(":" + os.Getenv("APP_PORT"))

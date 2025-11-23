@@ -18,9 +18,24 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB) {
 
 	user.Get("/verify", Verify)
 
-	protected := user.Group("/", JWTProtect([]string{"company_admin", "university_admin"}))
+	protected := user.Group("/", JWTProtect([]string{"*"}))
 	protected.Get("/", func(c *fiber.Ctx) error {
 		// id := c.Locals("user_id")
 		return c.SendStatus(202)
 	})
+
+	groups := protected.Group("/group")
+
+	groups.Post("/", func(c *fiber.Ctx) error {
+		return CreateGroup(c, db)
+	})
+
+	groups.Post("/add", func(c *fiber.Ctx) error {
+		return AddToGroup(c, db)
+	})
+
+	groups.Post("/remove", func(c *fiber.Ctx) error {
+		return RemoveFromGroup(c, db)
+	})
+
 }

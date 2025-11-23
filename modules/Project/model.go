@@ -15,6 +15,7 @@ type Budget struct {
 type Project struct {
 	gorm.Model
 	DepartmentID int                   `json:"department_id"`
+	Title        string                `json:"title"`
 	Department   department.Department `json:"department" gorm:"foreignKey:DepartmentID"`
 	Description  string                `json:"description"`
 	Skills       datatypes.JSON        `json:"skills" gorm:"type:json"`
