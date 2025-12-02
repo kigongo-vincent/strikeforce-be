@@ -8,8 +8,8 @@ import (
 
 type Student struct {
 	gorm.Model
-	UserID   uint          `json:"user_id"`
+	UserID   uint          `json:"userId"`
 	User     user.User     `json:"user" gorm:"foreignKey:UserID"`
-	CourseID uint          `json:"course_id"`
+	CourseID uint          `json:"courseId"`
 	Course   course.Course `json:"course" gorm:"foreignKey:CourseID"`
 }

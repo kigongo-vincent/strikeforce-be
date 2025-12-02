@@ -19,6 +19,9 @@ DB_PASSWORD=
 DB_PORT=
 DB_HOST=
 
+//frontend base url for password reset links
+FRONTEND_URL=
+
 //email provider setup
 MAILJET_KEY=
 MAILJET_SECRET=

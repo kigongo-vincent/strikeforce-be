@@ -7,12 +7,12 @@ import (
 
 type Milestone struct {
 	gorm.Model
-	ProjectID          uint            `json:"project_id"`
+	ProjectID          uint            `json:"projectId"`
 	Project            project.Project `json:"project" gorm:"foreignKey:ProjectID"`
 	Title              string          `json:"title"`
 	Scope              string          `json:"scope"`
-	AcceptanceCriteria string          `json:"acceptance_criteria"`
-	DueDate            string          `json:"due_date"`
+	AcceptanceCriteria string          `json:"acceptanceCriteria"`
+	DueDate            string          `json:"dueDate"`
 	Amount             int             `json:"amount"`
 	Currency           string          `json:"currency"`
 	Status             string          `json:"status"`

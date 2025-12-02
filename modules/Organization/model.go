@@ -12,9 +12,11 @@ type Organization struct {
 	gorm.Model
 	Name       string    `json:"name" gorm:"unique"`
 	Type       string    `json:"type"`
-	IsApproved bool      `json:"is_approved"`
-	UserID     uint      `json:"user_id"`
+	IsApproved bool      `json:"isApproved"`
+	UserID     uint      `json:"userId"`
 	User       user.User `json:"user" gorm:"foreignKey:UserID"`
+	Website    string    `json:"website"`
 	Logo       string    `json:"logo"`
-	BrandColor string    `json:"brand_color"`
+	BrandColor string    `json:"brandColor"`
+	Address    string    `json:"address"`
 }

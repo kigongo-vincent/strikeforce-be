@@ -6,12 +6,21 @@ import (
 	"os"
 
 	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/config"
+	analytics "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Analytics"
+	application "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Application"
+	auth "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Auth"
+	chat "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Chat"
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
+	invitation "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Invitation"
 	milestone "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Milestone"
+	notification "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Notification"
 	organization "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Organization"
+	portfolio "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Portfolio"
 	project "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Project"
 	student "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Student"
+	supervisor "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Supervisor"
+	supervisorrequest "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/SupervisorRequest"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -36,7 +45,11 @@ func main() {
 		log.Fatal("Failed to connect to DB : " + DBError.Error())
 	}
 
+	// Serve static files (uploads)
+	app.Static("/uploads", "./uploads")
+
 	user.RegisterRoutes(app, DB)
+	auth.RegisterRoutes(app, DB)
 
 	apiV1 := app.Group("/api/v1")
 	organization.RegisterRoutes(apiV1, DB)
@@ -44,7 +57,15 @@ func main() {
 	project.RegisterRoutes(apiV1, DB)
 	course.RegisterRoutes(apiV1, DB)
 	student.RegisterRoutes(apiV1, DB)
+	supervisor.RegisterRoutes(apiV1, DB)
 	milestone.RegisterRoutes(apiV1, DB)
+	chat.RegisterRoutes(apiV1, DB)
+	notification.RegisterRoutes(apiV1, DB)
+	application.RegisterRoutes(apiV1, DB)
+	invitation.RegisterRoutes(apiV1, DB)
+	analytics.RegisterRoutes(apiV1, DB)
+	supervisorrequest.RegisterRoutes(apiV1, DB)
+	portfolio.RegisterRoutes(apiV1, DB)
 
 	fmt.Println("server running on port " + os.Getenv("APP_PORT"))
 	app.Listen(":" + os.Getenv("APP_PORT"))

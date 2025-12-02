@@ -5,6 +5,7 @@ import (
 	"os"
 
 	application "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Application"
+	auth "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Auth"
 	chat "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Chat"
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
@@ -13,8 +14,11 @@ import (
 	milestone "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Milestone"
 	notification "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Notification"
 	organization "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Organization"
+	portfolio "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Portfolio"
 	project "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Project"
 	student "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Student"
+	supervisor "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Supervisor"
+	supervisorrequest "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/SupervisorRequest"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -36,7 +40,7 @@ func ConnectToDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	migrationErr := db.AutoMigrate(&user.User{}, &organization.Organization{}, &course.Course{}, &department.Department{}, &project.Project{}, &milestone.Milestone{}, &application.Application{}, &chat.Message{}, &dispute.Dispute{}, &invitation.Invitation{}, &notification.Notification{}, &student.Student{})
+	migrationErr := db.AutoMigrate(&user.User{}, &organization.Organization{}, &course.Course{}, &department.Department{}, &project.Project{}, &milestone.Milestone{}, &application.Application{}, &chat.Message{}, &dispute.Dispute{}, &invitation.Invitation{}, &notification.Notification{}, &student.Student{}, &supervisor.Supervisor{}, &supervisorrequest.SupervisorRequest{}, &portfolio.PortfolioItem{}, &auth.PasswordResetToken{})
 
 	if migrationErr != nil {
 		fmt.Println("Small migration issue: [DB HAS DATA]")

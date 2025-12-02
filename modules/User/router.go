@@ -9,21 +9,44 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB) {
 
 	user := app.Group("/user")
 
+	// Public endpoints
 	user.Post("/login", func(c *fiber.Ctx) error {
 		return Login(c, db)
 	})
 	user.Post("/signup", func(c *fiber.Ctx) error {
 		return SignUp(c, db)
 	})
-
 	user.Get("/verify", Verify)
 
+	// Protected endpoints
 	protected := user.Group("/", JWTProtect([]string{"*"}))
+
 	protected.Get("/", func(c *fiber.Ctx) error {
-		// id := c.Locals("user_id")
-		return c.SendStatus(202)
+		return GetCurrentUser(c, db)
 	})
 
+	protected.Get("/all", func(c *fiber.Ctx) error {
+		return GetAll(c, db)
+	})
+
+	// Register /search BEFORE /:id to ensure it's matched first
+	protected.Get("/search", func(c *fiber.Ctx) error {
+		return SearchUsers(c, db)
+	})
+
+	protected.Get("/:id", func(c *fiber.Ctx) error {
+		return GetByID(c, db)
+	})
+
+	protected.Put("/:id", func(c *fiber.Ctx) error {
+		return UpdateUser(c, db)
+	})
+
+	protected.Delete("/:id", func(c *fiber.Ctx) error {
+		return DeleteUser(c, db)
+	})
+
+	// Group endpoints
 	groups := protected.Group("/group")
 
 	groups.Post("/", func(c *fiber.Ctx) error {
@@ -38,4 +61,34 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB) {
 		return RemoveFromGroup(c, db)
 	})
 
+	// User settings endpoints (in API v1)
+	apiV1 := app.Group("/api/v1")
+	settings := apiV1.Group("/users", JWTProtect([]string{"*"}))
+
+	settings.Get("/:id/settings", func(c *fiber.Ctx) error {
+		return GetUserSettings(c, db)
+	})
+
+	settings.Put("/:id/settings", func(c *fiber.Ctx) error {
+		return UpdateUserSettings(c, db)
+	})
+
+	// Group endpoints in API v1
+	apiV1Groups := apiV1.Group("/groups", JWTProtect([]string{"*"}))
+
+	apiV1Groups.Get("/", func(c *fiber.Ctx) error {
+		return GetAllGroups(c, db)
+	})
+
+	apiV1Groups.Get("/:id", func(c *fiber.Ctx) error {
+		return GetGroupByID(c, db)
+	})
+
+	apiV1Groups.Put("/:id", func(c *fiber.Ctx) error {
+		return UpdateGroup(c, db)
+	})
+
+	apiV1Groups.Delete("/:id", func(c *fiber.Ctx) error {
+		return DeleteGroup(c, db)
+	})
 }

@@ -7,9 +7,9 @@ import (
 
 type Message struct {
 	gorm.Model
-	SenderID int        `json:"sender_id"`
+	SenderID uint       `json:"senderId"`
 	Sender   user.User  `json:"sender" gorm:"foreignKey:SenderID"`
 	Body     string     `json:"body"`
-	GroupID  uint       `json:"group_id"`
+	GroupID  uint       `json:"groupId"`
 	Group    user.Group `json:"group" gorm:"foreignKey:GroupID"`
 }

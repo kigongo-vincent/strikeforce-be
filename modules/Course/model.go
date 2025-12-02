@@ -8,6 +8,6 @@ import (
 type Course struct {
 	gorm.Model
 	Name         string                `json:"name"`
-	DepartmentID uint                  `json:"department_id"`
-	Department   department.Department `json:"Department" gorm:"foreignKey:DepartmentID"`
+	DepartmentID uint                  `json:"departmentId"`
+	Department   department.Department `json:"department" gorm:"foreignKey:DepartmentID"`
 }

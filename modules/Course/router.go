@@ -18,4 +18,16 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 		return FindByDept(c, db)
 	})
 
+	courses.Get("/:id", func(c *fiber.Ctx) error {
+		return GetByID(c, db)
+	})
+
+	courses.Put("/:id", func(c *fiber.Ctx) error {
+		return Update(c, db)
+	})
+
+	courses.Delete("/:id", func(c *fiber.Ctx) error {
+		return Delete(c, db)
+	})
+
 }

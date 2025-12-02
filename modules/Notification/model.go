@@ -12,6 +12,6 @@ type Notification struct {
 	Message string    `json:"message"`
 	Seen    bool      `json:"seen"`
 	Link    string    `json:"link"`
-	UserID  uint      `json:"user_id"`
+	UserID  uint      `json:"userId"`
 	User    user.User `json:"user" gorm:"foreignKey:UserID"`
 }

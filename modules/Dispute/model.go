@@ -8,16 +8,16 @@ import (
 
 type Dispute struct {
 	gorm.Model
-	SubjectType string         `json:"subject_type"`
+	SubjectType string         `json:"subjectType"`
 	Reason      string         `json:"reason"`
 	Description string         `json:"description"`
 	Evidence    datatypes.JSON `json:"evidence" gorm:"type:json"`
 	Status      string         `json:"status" gorm:"default:'pending'"`
 	Level       string         `json:"level"`
-	IssuerID    uint           `json:"issuer_id"`
+	IssuerID    uint           `json:"issuerId"`
 	Issuer      user.User      `json:"issuer" gorm:"foreignKey:IssuerID"`
-	DefendantID uint           `json:"defendant_id"`
+	DefendantID uint           `json:"defendantId"`
 	Defendant   user.User      `json:"defendant" gorm:"foreignKey:DefendantID"`
 	Resolution  string         `json:"resolution"`
-	ResolvedAt  string         `json:"resolved_at"`
+	ResolvedAt  string         `json:"resolvedAt"`
 }
