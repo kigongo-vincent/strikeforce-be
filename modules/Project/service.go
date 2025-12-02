@@ -20,16 +20,16 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 	type CreateRequest struct {
 		DepartmentID *int     `json:"departmentId,omitempty"`
 		CourseID     *int     `json:"courseId,omitempty"`
-		UniversityID *uint   `json:"universityId,omitempty"`
-		Title         string  `json:"title"`
-		Description   string  `json:"description"`
-		Skills        []string `json:"skills"`
-		BudgetValue   *float64 `json:"budget,omitempty"`   // Frontend sends budget as number
-		Currency      *string  `json:"currency,omitempty"` // Frontend sends currency separately
-		Deadline      string   `json:"deadline"`
-		Capacity      uint     `json:"capacity"`
-		Status        string   `json:"status"`
-		Attachments   []string `json:"attachments"`
+		UniversityID *uint    `json:"universityId,omitempty"`
+		Title        string   `json:"title"`
+		Description  string   `json:"description"`
+		Skills       []string `json:"skills"`
+		BudgetValue  *float64 `json:"budget,omitempty"`   // Frontend sends budget as number
+		Currency     *string  `json:"currency,omitempty"` // Frontend sends currency separately
+		Deadline     string   `json:"deadline"`
+		Capacity     uint     `json:"capacity"`
+		Status       string   `json:"status"`
+		Attachments  []string `json:"attachments"`
 	}
 
 	var req CreateRequest
@@ -71,7 +71,7 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		}
 		project.Attachments = datatypes.JSON(attachmentsJSON)
 	}
-	
+
 	// Handle budget - frontend sends budget as number and currency separately
 	if req.BudgetValue != nil && req.Currency != nil {
 		project.Budget = Budget{
@@ -79,7 +79,7 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 			Value:    uint(*req.BudgetValue),
 		}
 	}
-	
+
 	// Validate budget is set
 	if project.Budget.Currency == "" || project.Budget.Value == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "budget and currency are required"})
@@ -334,10 +334,10 @@ func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"data":      projects,
-		"total":     total,
-		"page":      page,
-		"limit":     limit,
+		"data":       projects,
+		"total":      total,
+		"page":       page,
+		"limit":      limit,
 		"totalPages": totalPages,
 	})
 }
@@ -414,7 +414,7 @@ func UploadFiles(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"msg": "files uploaded successfully",
+		"msg":  "files uploaded successfully",
 		"data": fiber.Map{"paths": paths},
 	})
 }
