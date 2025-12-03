@@ -28,6 +28,7 @@ import (
 )
 
 func main() {
+	log.Println("Starting application...")
 
 	app := fiber.New()
 
@@ -40,11 +41,13 @@ func main() {
 		log.Println("Note: .env file not found. Using environment variables from system (production mode)")
 	}
 
+	log.Println("Connecting to database...")
 	DB, DBError := config.ConnectToDB()
 
 	if DBError != nil {
 		log.Fatal("Failed to connect to DB : " + DBError.Error())
 	}
+	log.Println("Database connected successfully")
 
 	// Serve static files (uploads)
 	app.Static("/uploads", "./uploads")
@@ -68,7 +71,21 @@ func main() {
 	supervisorrequest.RegisterRoutes(apiV1, DB)
 	portfolio.RegisterRoutes(apiV1, DB)
 
-	fmt.Println("server running on port " + os.Getenv("APP_PORT"))
-	app.Listen(":" + os.Getenv("APP_PORT"))
+	log.Println("All routes registered successfully")
+
+	// Get port from environment (Railway uses PORT, local dev uses APP_PORT)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = os.Getenv("APP_PORT")
+	}
+	if port == "" {
+		port = "8080" // Default fallback
+		log.Println("Warning: No PORT or APP_PORT set, using default 8080")
+	}
+
+	fmt.Println("Server starting on port " + port)
+	if err := app.Listen(":" + port); err != nil {
+		log.Fatal("Failed to start server: " + err.Error())
+	}
 
 }
