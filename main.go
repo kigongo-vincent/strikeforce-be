@@ -33,10 +33,11 @@ func main() {
 
 	app.Use(cors.New())
 
+	// Load .env file if it exists (for local development)
+	// In production (Railway), environment variables are set directly
 	envErr := godotenv.Load()
-
 	if envErr != nil {
-		log.Fatal("Failed to load .env, error: " + envErr.Error())
+		log.Println("Note: .env file not found. Using environment variables from system (production mode)")
 	}
 
 	DB, DBError := config.ConnectToDB()
