@@ -36,7 +36,7 @@ func main() {
 	envErr := godotenv.Load()
 
 	if envErr != nil {
-		log.Fatal("Failed to load .env")
+		log.Fatal("Failed to load .env, error: " + envErr.Error())
 	}
 
 	DB, DBError := config.ConnectToDB()
