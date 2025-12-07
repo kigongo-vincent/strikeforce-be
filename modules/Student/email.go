@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	mailer "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Mailer"
 	"github.com/mailjet/mailjet-apiv3-go/v4"
 )
@@ -49,14 +49,8 @@ func SendPasswordEmail(studentEmail, studentName, password string) error {
 
 	mj := mailjet.NewMailjetClient(mailjetKey, mailjetSecret)
 
-	baseURL := os.Getenv("FRONTEND_URL")
-	if baseURL == "" {
-		baseURL = os.Getenv("APP_URL")
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost:3000"
-	}
-	baseURL = strings.TrimSuffix(baseURL, "/")
+	// Get frontend URL from centralized config
+	baseURL := core.GetFrontendURL()
 	loginURL := fmt.Sprintf("%s/auth/login", baseURL)
 
 	subject := "Welcome to StrikeForce - Your Account Credentials"

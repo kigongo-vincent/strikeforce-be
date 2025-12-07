@@ -6,7 +6,7 @@ services:
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=Admin@2025
-      - POSTGRES_DB=strikeforce_db2
+      - POSTGRES_DB=strikeforce_db3
 
     ports:
       - "5432:5432"  

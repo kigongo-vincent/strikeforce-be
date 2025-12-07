@@ -4,10 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"strconv"
-	"strings"
 
+	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"github.com/gofiber/fiber/v2"
@@ -228,14 +227,8 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	// Send password email
-	baseURL := os.Getenv("FRONTEND_URL")
-	if baseURL == "" {
-		baseURL = os.Getenv("APP_URL")
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost:3000"
-	}
-	loginURL := fmt.Sprintf("%s/auth/login", strings.TrimSuffix(baseURL, "/"))
+	baseURL := core.GetFrontendURL()
+	loginURL := fmt.Sprintf("%s/auth/login", baseURL)
 
 	if err := SendPasswordEmail(req.Email, req.Name, password, loginURL); err != nil {
 		fmt.Printf("Warning: Failed to send password email to %s: %v\n", req.Email, err)

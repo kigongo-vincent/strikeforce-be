@@ -19,8 +19,8 @@ DB_PASSWORD=
 DB_PORT=
 DB_HOST=
 
-//frontend base url for password reset links
-FRONTEND_URL=
+//Note: Frontend URL is hardcoded to https://www.strikeforcetalent.africa
+//No environment variable needed - all email links use the production domain
 
 //email provider setup
 MAILJET_KEY=

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	mailer "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Mailer"
 	"github.com/mailjet/mailjet-apiv3-go/v4"
 )
@@ -24,15 +25,8 @@ func SendInvitationEmail(email, token, name, role, organizationName string) erro
 		mailjetFrom = "StrikeForce"
 	}
 
-	baseURL := os.Getenv("FRONTEND_URL")
-	if baseURL == "" {
-		baseURL = os.Getenv("APP_URL")
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost:3000"
-	}
-	baseURL = strings.TrimSuffix(baseURL, "/")
-
+	// Get frontend URL from centralized config
+	baseURL := core.GetFrontendURL()
 	inviteURL := fmt.Sprintf("%s/auth/invite?token=%s", baseURL, token)
 
 	displayName := strings.TrimSpace(name)
