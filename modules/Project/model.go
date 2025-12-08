@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"gorm.io/datatypes"
@@ -46,18 +47,27 @@ func (b *Budget) UnmarshalJSON(data []byte) error {
 
 type Project struct {
 	gorm.Model
-	DepartmentID int                   `json:"departmentId"`
-	Title        string                `json:"title"`
-	Department   department.Department `json:"department" gorm:"foreignKey:DepartmentID"`
-	Description  string                `json:"description"`
-	Skills       datatypes.JSON        `json:"skills" gorm:"type:json"`
-	Budget       Budget                `json:"budget" gorm:"embedded;embeddedPrefix:budget_"`
-	Deadline     string                `json:"deadline"`
-	Capacity     uint                  `json:"capacity" gorm:"default:0"`
-	Status       string                `json:"status" gorm:"default:'pending'"`
-	Attachments  datatypes.JSON        `json:"attachments" gorm:"type:json"`
-	UserID       uint                  `json:"userId"`
-	User         user.User             `json:"user" gorm:"foreignKey:UserID"`
-	SupervisorID *uint                 `json:"supervisorId,omitempty"` // Optional - nullable
-	Supervisor   *user.User            `json:"supervisor,omitempty" gorm:"foreignKey:SupervisorID"`
+	DepartmentID           int                   `json:"departmentId"`
+	CourseID               *uint                 `json:"courseId,omitempty"` // Optional - nullable
+	Title                  string                `json:"title"`
+	Department             department.Department `json:"department" gorm:"foreignKey:DepartmentID"`
+	Course                 *course.Course        `json:"course,omitempty" gorm:"foreignKey:CourseID"`
+	Description            string                `json:"description"` // Kept for backward compatibility
+	Summary                string                `json:"summary,omitempty" gorm:"type:text"`
+	ChallengeStatement     string                `json:"challengeStatement,omitempty" gorm:"type:text"`
+	ScopeActivities        string                `json:"scopeActivities,omitempty" gorm:"type:text"`
+	DeliverablesMilestones string                `json:"deliverablesMilestones,omitempty" gorm:"type:text"`
+	TeamStructure          string                `json:"teamStructure,omitempty"` // "individuals", "groups", "both"
+	Duration               string                `json:"duration,omitempty"`      // Project duration (e.g., "12 weeks", "3 months")
+	Expectations           string                `json:"expectations,omitempty" gorm:"type:text"`
+	Skills                 datatypes.JSON        `json:"skills" gorm:"type:json"`
+	Budget                 Budget                `json:"budget" gorm:"embedded;embeddedPrefix:budget_"`
+	Deadline               string                `json:"deadline"`
+	Capacity               uint                  `json:"capacity" gorm:"default:0"`
+	Status                 string                `json:"status" gorm:"default:'pending'"`
+	Attachments            datatypes.JSON        `json:"attachments" gorm:"type:json"`
+	UserID                 uint                  `json:"userId"`
+	User                   user.User             `json:"user" gorm:"foreignKey:UserID"`
+	SupervisorID           *uint                 `json:"supervisorId,omitempty"` // Optional - nullable
+	Supervisor             *user.User            `json:"supervisor,omitempty" gorm:"foreignKey:SupervisorID"`
 }

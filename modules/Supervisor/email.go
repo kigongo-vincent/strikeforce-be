@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
+	core "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	mailer "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Mailer"
 	"github.com/mailjet/mailjet-apiv3-go/v4"
 )
@@ -90,5 +90,3 @@ func SendPasswordEmail(supervisorEmail, supervisorName, password, loginURL strin
 	_, err := mj.SendMailV31(&messages)
 	return mailer.InterpretMailjetError(err, "supervisor password email")
 }
-
-

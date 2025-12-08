@@ -822,7 +822,73 @@ func SearchUsers(c *fiber.Ctx, db *gorm.DB) error {
 	return c.JSON(fiber.Map{"data": users})
 }
 
-// UpdateUser updates a user
+// UpdateCurrentUser updates the current authenticated user (uses token's user_id)
+func UpdateCurrentUser(c *fiber.Ctx, db *gorm.DB) error {
+	userID := c.Locals("user_id").(uint)
+
+	// Get current user from database
+	var usr User
+	if err := db.First(&usr, userID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(404).JSON(fiber.Map{"msg": "user not found"})
+		}
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to find user"})
+	}
+
+	var updateData User
+	if err := c.BodyParser(&updateData); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "invalid update data: " + err.Error()})
+	}
+
+	// Don't allow updating password through this endpoint (use separate endpoint)
+	updateData.Password = ""
+	// Don't allow changing role
+	role := c.Locals("role").(string)
+	if role != "super-admin" {
+		updateData.Role = usr.Role
+	}
+
+	// Update basic user fields
+	if updateData.Name != "" {
+		usr.Name = updateData.Name
+	}
+	if updateData.Email != "" {
+		usr.Email = updateData.Email
+	}
+
+	// Update profile fields - handle both empty and non-empty values
+	// Use pointer checks or explicit field updates to handle partial updates
+	if updateData.Profile.Avatar != usr.Profile.Avatar {
+		usr.Profile.Avatar = updateData.Profile.Avatar
+	}
+	if updateData.Profile.Bio != usr.Profile.Bio {
+		usr.Profile.Bio = updateData.Profile.Bio
+	}
+	if updateData.Profile.Phone != usr.Profile.Phone {
+		usr.Profile.Phone = updateData.Profile.Phone
+	}
+	if updateData.Profile.Location != usr.Profile.Location {
+		usr.Profile.Location = updateData.Profile.Location
+	}
+	if updateData.Profile.Skills != nil {
+		usr.Profile.Skills = updateData.Profile.Skills
+	}
+
+	if err := db.Save(&usr).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to update user: " + err.Error()})
+	}
+
+	// Reload with relations
+	db.Preload("Groups").First(&usr, usr.ID)
+	usr.Password = ""
+
+	return c.JSON(fiber.Map{
+		"msg":  "user updated successfully",
+		"data": usr,
+	})
+}
+
+// UpdateUser updates a user (admin can update any user by ID)
 func UpdateUser(c *fiber.Ctx, db *gorm.DB) error {
 	id := c.Params("id")
 	userID := c.Locals("user_id").(uint)
@@ -854,7 +920,33 @@ func UpdateUser(c *fiber.Ctx, db *gorm.DB) error {
 		updateData.Role = usr.Role
 	}
 
-	if err := db.Model(&usr).Updates(updateData).Error; err != nil {
+	// Update basic user fields
+	if updateData.Name != "" {
+		usr.Name = updateData.Name
+	}
+	if updateData.Email != "" {
+		usr.Email = updateData.Email
+	}
+
+	// Update profile fields - handle both empty and non-empty values
+	// Use pointer checks or explicit field updates to handle partial updates
+	if updateData.Profile.Avatar != usr.Profile.Avatar {
+		usr.Profile.Avatar = updateData.Profile.Avatar
+	}
+	if updateData.Profile.Bio != usr.Profile.Bio {
+		usr.Profile.Bio = updateData.Profile.Bio
+	}
+	if updateData.Profile.Phone != usr.Profile.Phone {
+		usr.Profile.Phone = updateData.Profile.Phone
+	}
+	if updateData.Profile.Location != usr.Profile.Location {
+		usr.Profile.Location = updateData.Profile.Location
+	}
+	if updateData.Profile.Skills != nil {
+		usr.Profile.Skills = updateData.Profile.Skills
+	}
+
+	if err := db.Save(&usr).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to update user: " + err.Error()})
 	}
 

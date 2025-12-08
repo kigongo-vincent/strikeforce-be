@@ -11,26 +11,48 @@ import (
 )
 
 func Create(c *fiber.Ctx, db *gorm.DB) error {
+	// Parse request body - frontend sends snake_case field names
+	type CreateRequest struct {
+		DepartmentID uint   `json:"department_id"`
+		Name         string `json:"name"`
+	}
 
-	var course Course
+	var req CreateRequest
 
-	if err := c.BodyParser(&course); err != nil {
+	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "invalid course details"})
 	}
 
 	var UserID = c.Locals("user_id").(uint)
 	var OrgID = organization.FindById(db, UserID)
-	DeptID := department.FindById(db, OrgID)
 
-	fmt.Println("org id: " + strconv.Itoa(int(OrgID)))
-	fmt.Println("Dept id: " + strconv.Itoa(int(DeptID)))
-	fmt.Println("User id: " + strconv.Itoa(int(UserID)))
-
-	if DeptID == 0 {
-		return c.Status(400).JSON(fiber.Map{"msg": "you can not add a course to a department you didn't create"})
+	if OrgID == 0 {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to resolve organization"})
 	}
 
-	course.DepartmentID = DeptID
+	// Use the department_id from the request body
+	if req.DepartmentID == 0 {
+		return c.Status(400).JSON(fiber.Map{"msg": "department_id is required"})
+	}
+
+	// Validate that the department belongs to the user's organization
+	var dept department.Department
+	if err := db.Where("id = ? AND organization_id = ?", req.DepartmentID, OrgID).First(&dept).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(403).JSON(fiber.Map{"msg": "you can not add a course to a department you didn't create"})
+		}
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to validate department: " + err.Error()})
+	}
+
+	// Build course from request
+	course := Course{
+		Name:         req.Name,
+		DepartmentID: req.DepartmentID,
+	}
+
+	fmt.Println("org id: " + strconv.Itoa(int(OrgID)))
+	fmt.Println("Dept id: " + strconv.Itoa(int(course.DepartmentID)))
+	fmt.Println("User id: " + strconv.Itoa(int(UserID)))
 
 	if err := db.Create(&course).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to add course"})

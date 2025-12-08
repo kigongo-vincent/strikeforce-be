@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
+	core "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	mailer "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Mailer"
 	"github.com/mailjet/mailjet-apiv3-go/v4"
 )

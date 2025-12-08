@@ -24,4 +24,8 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 	students.Get("/", func(c *fiber.Ctx) error {
 		return FindByCourse(c, db)
 	})
+
+	students.Put("/:id", func(c *fiber.Ctx) error {
+		return Update(c, db)
+	})
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
+	core "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"github.com/gofiber/fiber/v2"

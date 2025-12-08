@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"github.com/gofiber/fiber/v2"
@@ -18,18 +19,25 @@ import (
 func Create(c *fiber.Ctx, db *gorm.DB) error {
 	// Parse request body - frontend sends camelCase field names
 	type CreateRequest struct {
-		DepartmentID *int     `json:"departmentId,omitempty"`
-		CourseID     *int     `json:"courseId,omitempty"`
-		UniversityID *uint    `json:"universityId,omitempty"`
-		Title        string   `json:"title"`
-		Description  string   `json:"description"`
-		Skills       []string `json:"skills"`
-		BudgetValue  *float64 `json:"budget,omitempty"`   // Frontend sends budget as number
-		Currency     *string  `json:"currency,omitempty"` // Frontend sends currency separately
-		Deadline     string   `json:"deadline"`
-		Capacity     uint     `json:"capacity"`
-		Status       string   `json:"status"`
-		Attachments  []string `json:"attachments"`
+		DepartmentID           *int     `json:"departmentId,omitempty"`
+		CourseID               *int     `json:"courseId,omitempty"`
+		UniversityID           *uint    `json:"universityId,omitempty"`
+		Title                  string   `json:"title"`
+		Description            string   `json:"description"` // Kept for backward compatibility
+		Summary                string   `json:"summary,omitempty"`
+		ChallengeStatement     string   `json:"challengeStatement,omitempty"`
+		ScopeActivities        string   `json:"scopeActivities,omitempty"`
+		DeliverablesMilestones string   `json:"deliverablesMilestones,omitempty"`
+		TeamStructure          string   `json:"teamStructure,omitempty"`
+		Duration               string   `json:"duration,omitempty"`
+		Expectations           string   `json:"expectations,omitempty"`
+		Skills                 []string `json:"skills"`
+		BudgetValue            *float64 `json:"budget,omitempty"`   // Frontend sends budget as number
+		Currency               *string  `json:"currency,omitempty"` // Frontend sends currency separately
+		Deadline               string   `json:"deadline"`
+		Capacity               uint     `json:"capacity"`
+		Status                 string   `json:"status"`
+		Attachments            []string `json:"attachments"`
 	}
 
 	var req CreateRequest
@@ -40,18 +48,31 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Build project from request
 	project := Project{
-		Title:       req.Title,
-		Description: req.Description,
-		Deadline:    req.Deadline,
-		Capacity:    req.Capacity,
-		Status:      req.Status,
-		UserID:      c.Locals("user_id").(uint),
+		Title:                  req.Title,
+		Description:            req.Description,
+		Summary:                req.Summary,
+		ChallengeStatement:     req.ChallengeStatement,
+		ScopeActivities:        req.ScopeActivities,
+		DeliverablesMilestones: req.DeliverablesMilestones,
+		TeamStructure:          req.TeamStructure,
+		Duration:               req.Duration,
+		Expectations:           req.Expectations,
+		Deadline:               req.Deadline,
+		Capacity:               req.Capacity,
+		Status:                 req.Status,
+		UserID:                 c.Locals("user_id").(uint),
 		// SupervisorID is optional - will be set to 0 by default, but we'll omit it from insert
 	}
 
 	// Handle departmentId
 	if req.DepartmentID != nil {
 		project.DepartmentID = *req.DepartmentID
+	}
+
+	// Handle courseId (optional)
+	if req.CourseID != nil && *req.CourseID > 0 {
+		courseID := uint(*req.CourseID)
+		project.CourseID = &courseID
 	}
 
 	// Handle skills - convert to JSON
@@ -110,13 +131,28 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "department must belong to a university organization"})
 	}
 
+	// Validate course if courseId is provided
+	if project.CourseID != nil && *project.CourseID > 0 {
+		var courseRecord course.Course
+		if err := db.First(&courseRecord, *project.CourseID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return c.Status(404).JSON(fiber.Map{"msg": "course not found"})
+			}
+			return c.Status(400).JSON(fiber.Map{"msg": "failed to validate course: " + err.Error()})
+		}
+		// Validate that course belongs to the same department
+		if courseRecord.DepartmentID != uint(project.DepartmentID) {
+			return c.Status(400).JSON(fiber.Map{"msg": "course does not belong to the specified department"})
+		}
+	}
+
 	// Create project - SupervisorID is now nullable, so nil is fine
 	if err := db.Create(&project).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to add project: " + err.Error()})
 	}
 
-	// Preload department with organization for response
-	if err := db.Preload("Department").Preload("Department.Organization").Preload("User").First(&project, project.ID).Error; err != nil {
+	// Preload department with organization and course for response
+	if err := db.Preload("Department").Preload("Department.Organization").Preload("Course").Preload("User").First(&project, project.ID).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "project created but failed to load details: " + err.Error()})
 	}
 
@@ -132,7 +168,7 @@ func GetByOwner(c *fiber.Ctx, db *gorm.DB) error {
 
 	var projects []Project
 
-	if err := db.Where("user_id = ?", c.Locals("user_id").(uint)).Preload("Department").Preload("Department.Organization").Preload("User").Preload("Supervisor").Find(&projects).Error; err != nil {
+	if err := db.Where("user_id = ?", c.Locals("user_id").(uint)).Preload("Department").Preload("Department.Organization").Preload("Course").Preload("User").Preload("Supervisor").Find(&projects).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get projects: " + err.Error()})
 	}
 
@@ -141,15 +177,184 @@ func GetByOwner(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func Update(c *fiber.Ctx, db *gorm.DB) error {
-
-	var project Project
-
-	if err := c.BodyParser(&project); err != nil {
-		return c.Status(400).JSON(fiber.Map{"msg": "invalid project details"})
+	// Parse request body - frontend sends camelCase field names
+	type UpdateRequest struct {
+		ID                     *uint    `json:"id"`
+		DepartmentID           *int     `json:"departmentId,omitempty"`
+		CourseID               *int     `json:"courseId,omitempty"`
+		UniversityID           *uint    `json:"universityId,omitempty"`
+		Title                  *string  `json:"title,omitempty"`
+		Description            *string  `json:"description,omitempty"`
+		Summary                *string  `json:"summary,omitempty"`
+		ChallengeStatement     *string  `json:"challengeStatement,omitempty"`
+		ScopeActivities        *string  `json:"scopeActivities,omitempty"`
+		DeliverablesMilestones *string  `json:"deliverablesMilestones,omitempty"`
+		TeamStructure          *string  `json:"teamStructure,omitempty"`
+		Duration               *string  `json:"duration,omitempty"`
+		Expectations           *string  `json:"expectations,omitempty"`
+		Skills                 []string `json:"skills,omitempty"`
+		BudgetValue            *float64 `json:"budget,omitempty"`
+		Currency               *string  `json:"currency,omitempty"`
+		Deadline               *string  `json:"deadline,omitempty"`
+		Capacity               *uint    `json:"capacity,omitempty"`
+		Status                 *string  `json:"status,omitempty"`
+		Attachments            []string `json:"attachments,omitempty"`
 	}
 
-	if err := db.Updates(&project).Error; err != nil {
-		return c.Status(400).JSON(fiber.Map{"msg": "failed to update"})
+	var req UpdateRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to get project details: " + err.Error()})
+	}
+
+	// Validate project ID is provided
+	if req.ID == nil || *req.ID == 0 {
+		return c.Status(400).JSON(fiber.Map{"msg": "project id is required"})
+	}
+
+	// Load existing project
+	var project Project
+	if err := db.First(&project, *req.ID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(404).JSON(fiber.Map{"msg": "project not found"})
+		}
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to load project: " + err.Error()})
+	}
+
+	// Authorization check - only project owner or super-admin can update
+	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
+	if role != "super-admin" && project.UserID != userID {
+		return c.Status(403).JSON(fiber.Map{"msg": "you don't have permission to update this project"})
+	}
+
+	// Update fields if provided
+	if req.Title != nil {
+		project.Title = *req.Title
+	}
+	if req.Description != nil {
+		project.Description = *req.Description
+	}
+	if req.Summary != nil {
+		project.Summary = *req.Summary
+	}
+	if req.ChallengeStatement != nil {
+		project.ChallengeStatement = *req.ChallengeStatement
+	}
+	if req.ScopeActivities != nil {
+		project.ScopeActivities = *req.ScopeActivities
+	}
+	if req.DeliverablesMilestones != nil {
+		project.DeliverablesMilestones = *req.DeliverablesMilestones
+	}
+	if req.TeamStructure != nil {
+		project.TeamStructure = *req.TeamStructure
+	}
+	if req.Duration != nil {
+		project.Duration = *req.Duration
+	}
+	if req.Expectations != nil {
+		project.Expectations = *req.Expectations
+	}
+	if req.Deadline != nil {
+		project.Deadline = *req.Deadline
+	}
+	if req.Capacity != nil {
+		project.Capacity = *req.Capacity
+	}
+	if req.Status != nil {
+		project.Status = *req.Status
+	}
+
+	// Handle departmentId
+	if req.DepartmentID != nil {
+		project.DepartmentID = *req.DepartmentID
+		// Validate department exists
+		var dept department.Department
+		if err := db.Preload("Organization").First(&dept, project.DepartmentID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return c.Status(404).JSON(fiber.Map{"msg": "department not found"})
+			}
+			return c.Status(400).JSON(fiber.Map{"msg": "failed to validate department: " + err.Error()})
+		}
+		// Validate that the department's organization is a university
+		if dept.Organization.Type != "university" && dept.Organization.Type != "UNIVERSITY" {
+			return c.Status(400).JSON(fiber.Map{"msg": "department must belong to a university organization"})
+		}
+	}
+
+	// Handle courseId (optional)
+	if req.CourseID != nil {
+		if *req.CourseID > 0 {
+			courseID := uint(*req.CourseID)
+			project.CourseID = &courseID
+			// Validate course exists and belongs to the department
+			if project.DepartmentID > 0 {
+				var courseRecord course.Course
+				if err := db.First(&courseRecord, *project.CourseID).Error; err != nil {
+					if err == gorm.ErrRecordNotFound {
+						return c.Status(404).JSON(fiber.Map{"msg": "course not found"})
+					}
+					return c.Status(400).JSON(fiber.Map{"msg": "failed to validate course: " + err.Error()})
+				}
+				// Validate that course belongs to the same department
+				if courseRecord.DepartmentID != uint(project.DepartmentID) {
+					return c.Status(400).JSON(fiber.Map{"msg": "course does not belong to the specified department"})
+				}
+			}
+		} else {
+			// courseId is 0 or negative, set to nil
+			project.CourseID = nil
+		}
+	}
+
+	// Handle skills - convert to JSON
+	if req.Skills != nil {
+		skillsJSON, err := json.Marshal(req.Skills)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"msg": "failed to process skills: " + err.Error()})
+		}
+		project.Skills = datatypes.JSON(skillsJSON)
+	}
+
+	// Handle attachments - convert to JSON
+	if req.Attachments != nil {
+		attachmentsJSON, err := json.Marshal(req.Attachments)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"msg": "failed to process attachments: " + err.Error()})
+		}
+		project.Attachments = datatypes.JSON(attachmentsJSON)
+	}
+
+	// Handle budget - frontend sends budget as number and currency separately
+	if req.BudgetValue != nil && req.Currency != nil {
+		project.Budget = Budget{
+			Currency: *req.Currency,
+			Value:    uint(*req.BudgetValue),
+		}
+	} else if req.BudgetValue != nil {
+		// Only budget value provided, keep existing currency
+		project.Budget.Value = uint(*req.BudgetValue)
+	} else if req.Currency != nil {
+		// Only currency provided, keep existing value
+		project.Budget.Currency = *req.Currency
+	}
+
+	// Validate budget is set (if updating budget)
+	if req.BudgetValue != nil || req.Currency != nil {
+		if project.Budget.Currency == "" || project.Budget.Value == 0 {
+			return c.Status(400).JSON(fiber.Map{"msg": "budget and currency are required"})
+		}
+	}
+
+	// Update project
+	if err := db.Save(&project).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "failed to update project: " + err.Error()})
+	}
+
+	// Preload relations for response
+	if err := db.Preload("Department").Preload("Department.Organization").Preload("Course").Preload("User").Preload("Supervisor").First(&project, project.ID).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{"msg": "project updated but failed to load details: " + err.Error()})
 	}
 
 	return c.JSON(fiber.Map{"data": project})
@@ -215,7 +420,7 @@ func UpdateStatus(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	// Reload project with relations for response
-	if err := db.Preload("Department").Preload("Department.Organization").Preload("User").Preload("Supervisor").First(&tmp, tmp.ID).Error; err != nil {
+	if err := db.Preload("Department").Preload("Department.Organization").Preload("Course").Preload("User").Preload("Supervisor").First(&tmp, tmp.ID).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "project status updated but failed to load details"})
 	}
 
@@ -329,7 +534,7 @@ func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 	query = query.Offset(offset).Limit(limit)
 
 	// Preload relations and execute query
-	if err := query.Preload("User").Preload("Supervisor").Preload("Department").Preload("Department.Organization").Find(&projects).Error; err != nil {
+	if err := query.Preload("User").Preload("Supervisor").Preload("Department").Preload("Department.Organization").Preload("Course").Find(&projects).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get projects: " + err.Error()})
 	}
 
@@ -347,7 +552,7 @@ func GetByID(c *fiber.Ctx, db *gorm.DB) error {
 	id := c.Params("id")
 	var proj Project
 
-	if err := db.Preload("User").Preload("Supervisor").Preload("Department").Preload("Department.Organization").First(&proj, id).Error; err != nil {
+	if err := db.Preload("User").Preload("Supervisor").Preload("Department").Preload("Department.Organization").Preload("Course").First(&proj, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(404).JSON(fiber.Map{"msg": "project not found"})
 		}

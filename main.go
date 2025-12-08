@@ -6,9 +6,10 @@ import (
 	"os"
 
 	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/config"
-	analytics "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Analytics"
+	analytics 	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Analytics"
 	application "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Application"
 	auth "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Auth"
+	branch "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Branch"
 	chat "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Chat"
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
@@ -58,6 +59,7 @@ func main() {
 	apiV1 := app.Group("/api/v1")
 	organization.RegisterRoutes(apiV1, DB)
 	department.RegisterRRoutes(apiV1, DB)
+	branch.RegisterRoutes(apiV1, DB)
 	project.RegisterRoutes(apiV1, DB)
 	course.RegisterRoutes(apiV1, DB)
 	student.RegisterRoutes(apiV1, DB)

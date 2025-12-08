@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
+	core "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Core"
 	mailer "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Mailer"
 	"github.com/mailjet/mailjet-apiv3-go/v4"
 )
@@ -110,7 +110,7 @@ func sendOrganizationEmail(to, subject, html, text, context string) error {
 	}
 
 	client := mailjet.NewMailjetClient(mailjetKey, mailjetSecret)
-	
+
 	// Extract name from recipient if it's in format "Name <email>" or use email as name
 	recipientName := to
 	if strings.Contains(to, "<") {
@@ -120,7 +120,7 @@ func sendOrganizationEmail(to, subject, html, text, context string) error {
 			to = strings.Trim(strings.TrimSpace(parts[1]), ">")
 		}
 	}
-	
+
 	message := mailjet.InfoMessagesV31{
 		From: &mailjet.RecipientV31{
 			Email: mailjetEmail,

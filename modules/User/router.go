@@ -25,6 +25,11 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB) {
 		return GetCurrentUser(c, db)
 	})
 
+	// Update current user (uses token's user_id, no ID in URL)
+	protected.Put("/", func(c *fiber.Ctx) error {
+		return UpdateCurrentUser(c, db)
+	})
+
 	protected.Get("/all", func(c *fiber.Ctx) error {
 		return GetAll(c, db)
 	})
@@ -38,6 +43,7 @@ func RegisterRoutes(app *fiber.App, db *gorm.DB) {
 		return GetByID(c, db)
 	})
 
+	// Update user by ID (admin only)
 	protected.Put("/:id", func(c *fiber.Ctx) error {
 		return UpdateUser(c, db)
 	})
