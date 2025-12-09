@@ -166,19 +166,24 @@ func buildOrganizationResponse(org *OrganizationRow, email string) fiber.Map {
 }
 
 func Login(c *fiber.Ctx, db *gorm.DB) error {
+	// Use a separate struct for login request since Password field has json:"-" in User model
+	type LoginRequest struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
 
-	var user User
-	if err := c.BodyParser(&user); err != nil {
+	var loginReq LoginRequest
+	if err := c.BodyParser(&loginReq); err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to verify the parsed information"})
 	}
 
 	var foundUser User
-	if err := db.Where("email = ?", user.Email).First(&foundUser).Error; err != nil {
+	if err := db.Where("email = ?", loginReq.Email).First(&foundUser).Error; err != nil {
 		return c.Status(401).JSON(fiber.Map{"msg": "user not found"})
 
 	}
 
-	if !IsPasswordValid(foundUser.Password, user.Password) {
+	if !IsPasswordValid(foundUser.Password, loginReq.Password) {
 		return c.Status(401).JSON(fiber.Map{"msg": "invalid password"})
 	}
 
@@ -255,7 +260,7 @@ func Login(c *fiber.Ctx, db *gorm.DB) error {
 		c.Status(400).JSON(fiber.Map{"msg": "failed to verify session"})
 	}
 
-	foundUser.Password = ""
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	var data = map[string]any{
 		"token": token,
@@ -733,7 +738,7 @@ func GetCurrentUser(c *fiber.Ctx, db *gorm.DB) error {
 		}
 	}
 
-	usr.Password = "" // Don't return password
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	return c.JSON(fiber.Map{"data": usr})
 }
@@ -750,7 +755,7 @@ func GetByID(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get user: " + err.Error()})
 	}
 
-	usr.Password = "" // Don't return password
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	return c.JSON(fiber.Map{"data": usr})
 }
@@ -769,10 +774,7 @@ func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get users: " + err.Error()})
 	}
 
-	// Remove passwords
-	for i := range users {
-		users[i].Password = ""
-	}
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	return c.JSON(fiber.Map{"data": users})
 }
@@ -814,10 +816,7 @@ func SearchUsers(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to search users: " + err.Error()})
 	}
 
-	// Remove passwords
-	for i := range users {
-		users[i].Password = ""
-	}
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	return c.JSON(fiber.Map{"data": users})
 }
@@ -880,7 +879,7 @@ func UpdateCurrentUser(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Reload with relations
 	db.Preload("Groups").First(&usr, usr.ID)
-	usr.Password = ""
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	return c.JSON(fiber.Map{
 		"msg":  "user updated successfully",
@@ -952,7 +951,7 @@ func UpdateUser(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Reload with relations
 	db.Preload("Groups").First(&usr, usr.ID)
-	usr.Password = ""
+	// Password is excluded from JSON via json:"-" tag in User model
 
 	return c.JSON(fiber.Map{
 		"msg":  "user updated successfully",

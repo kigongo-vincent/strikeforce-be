@@ -19,7 +19,7 @@ type User struct {
 	Role     string  `json:"role"`
 	Email    string  `json:"email" gorm:"unique"`
 	Name     string  `json:"name"`
-	Password string  `json:"password"`
+	Password string  `json:"-"` // Never return password in JSON responses
 	Profile  Profile `json:"profile" gorm:"embedded;embeddedPrefix:profile_"`
 	Groups   []Group `json:"groups" gorm:"many2many:user_groups"`
 	CourseID uint    `json:"courseId"`

@@ -6,15 +6,39 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
+	organization "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Organization"
 	user "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/User"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+// Valid team structure values
+const (
+	TeamStructureIndividuals = "individuals"
+	TeamStructureGroups      = "groups"
+	TeamStructureBoth        = "both"
+)
+
+// ValidTeamStructures is a map of valid team structure values
+var ValidTeamStructures = map[string]bool{
+	TeamStructureIndividuals: true,
+	TeamStructureGroups:      true,
+	TeamStructureBoth:        true,
+}
+
+// ValidateTeamStructure validates that the team structure value is one of the accepted values
+func ValidateTeamStructure(teamStructure string) bool {
+	if teamStructure == "" {
+		return false
+	}
+	return ValidTeamStructures[teamStructure]
+}
 
 func Create(c *fiber.Ctx, db *gorm.DB) error {
 	// Parse request body - frontend sends camelCase field names
@@ -44,6 +68,11 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get project details: " + err.Error()})
+	}
+
+	// Validate team structure if provided
+	if req.TeamStructure != "" && !ValidateTeamStructure(req.TeamStructure) {
+		return c.Status(400).JSON(fiber.Map{"msg": "invalid team structure. Must be one of: individuals, groups, both"})
 	}
 
 	// Build project from request
@@ -151,8 +180,8 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to add project: " + err.Error()})
 	}
 
-	// Preload department with organization and course for response
-	if err := db.Preload("Department").Preload("Department.Organization").Preload("Course").Preload("User").First(&project, project.ID).Error; err != nil {
+	// Preload all relations for consistent response format
+	if err := db.Preload("User").Preload("Supervisor").Preload("Department").Preload("Department.Organization").Preload("Course").First(&project, project.ID).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "project created but failed to load details: " + err.Error()})
 	}
 
@@ -248,6 +277,10 @@ func Update(c *fiber.Ctx, db *gorm.DB) error {
 		project.DeliverablesMilestones = *req.DeliverablesMilestones
 	}
 	if req.TeamStructure != nil {
+		// Validate team structure
+		if !ValidateTeamStructure(*req.TeamStructure) {
+			return c.Status(400).JSON(fiber.Map{"msg": "invalid team structure. Must be one of: individuals, groups, both"})
+		}
 		project.TeamStructure = *req.TeamStructure
 	}
 	if req.Duration != nil {
@@ -474,11 +507,28 @@ func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 		}
 	}
 
-	// Filter by partnerId (user_id)
+	// Filter by partnerId
+	// partnerId can be either a user_id or an organization_id
+	// If it's an organization_id (for partner organizations), we need to get the user_id from that organization
 	if partnerId := c.Query("partnerId"); partnerId != "" {
 		partnerIdUint, err := strconv.ParseUint(partnerId, 10, 32)
 		if err == nil {
-			query = query.Where("user_id = ?", uint(partnerIdUint))
+			// First, check if this is a partner organization ID
+			var org organization.Organization
+			if err := db.First(&org, uint(partnerIdUint)).Error; err == nil {
+				// Check if it's a partner organization (type is "company" or "partner")
+				orgType := strings.ToLower(org.Type)
+				if orgType == "company" || orgType == "partner" {
+					// It's a partner organization ID, use the organization's UserID
+					query = query.Where("user_id = ?", org.UserID)
+				} else {
+					// It's not a partner organization, treat it as a user_id directly
+					query = query.Where("user_id = ?", uint(partnerIdUint))
+				}
+			} else {
+				// It's not an organization ID, treat it as a user_id directly
+				query = query.Where("user_id = ?", uint(partnerIdUint))
+			}
 		}
 	}
 

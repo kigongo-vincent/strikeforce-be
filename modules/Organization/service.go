@@ -515,7 +515,7 @@ func buildDashboardStats(db *gorm.DB, orgID uint) (dashboardStatsResponse, error
 		switch strings.ToLower(row.Status) {
 		case "completed":
 			entry.CompletedProjects++
-		case "in-progress":
+		case "in-progress", "published":
 			entry.ActiveProjects++
 		case "pending", "draft":
 			entry.PendingProjects++
@@ -585,6 +585,7 @@ func fetchStudentTrend(db *gorm.DB, orgID uint) ([]studentTrendPoint, error) {
 func Delete(c *fiber.Ctx, db *gorm.DB) error {
 	id := c.Params("id")
 	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
 
 	var org Organization
 	if err := db.First(&org, id).Error; err != nil {
@@ -594,8 +595,8 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find organization"})
 	}
 
-	// Check if user owns the organization
-	if org.UserID != userID {
+	// Check if user owns the organization or is super-admin
+	if org.UserID != userID && role != "super-admin" {
 		return c.Status(403).JSON(fiber.Map{"msg": "you don't have permission to delete this organization"})
 	}
 
