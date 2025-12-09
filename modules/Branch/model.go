@@ -11,4 +11,3 @@ type Branch struct {
 	OrganizationID uint                      `json:"organizationId"`
 	Organization   organization.Organization `json:"organization" gorm:"foreignKey:OrganizationID"`
 }
-

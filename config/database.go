@@ -6,7 +6,9 @@ import (
 
 	application "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Application"
 	auth "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Auth"
+	branch "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Branch"
 	chat "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Chat"
+	college "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/College"
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	dispute "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Dispute"
@@ -40,7 +42,7 @@ func ConnectToDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	migrationErr := db.AutoMigrate(&user.User{}, &organization.Organization{}, &course.Course{}, &department.Department{}, &project.Project{}, &milestone.Milestone{}, &application.Application{}, &chat.Message{}, &dispute.Dispute{}, &invitation.Invitation{}, &notification.Notification{}, &student.Student{}, &supervisor.Supervisor{}, &supervisorrequest.SupervisorRequest{}, &portfolio.PortfolioItem{}, &auth.PasswordResetToken{})
+	migrationErr := db.AutoMigrate(&user.User{}, &organization.Organization{}, &branch.Branch{}, &college.College{}, &course.Course{}, &department.Department{}, &project.Project{}, &milestone.Milestone{}, &application.Application{}, &chat.Message{}, &dispute.Dispute{}, &invitation.Invitation{}, &notification.Notification{}, &student.Student{}, &supervisor.Supervisor{}, &supervisorrequest.SupervisorRequest{}, &portfolio.PortfolioItem{}, &auth.PasswordResetToken{})
 
 	if migrationErr != nil {
 		fmt.Println("Small migration issue: [DB HAS DATA]")

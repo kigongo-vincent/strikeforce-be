@@ -530,10 +530,24 @@ func GetAllGroups(c *fiber.Ctx, db *gorm.DB) error {
 		}
 	}
 
-	// Filter by current user's groups (user is leader or member)
-	// Never accept userId from query parameters - always use authenticated user from JWT token
+	// Get authenticated user's role and ID
 	userID := c.Locals("user_id").(uint)
-	query = query.Where("user_id = ? OR id IN (SELECT group_id FROM user_groups WHERE user_id = ?)", userID, userID)
+	role, _ := c.Locals("role").(string)
+
+	// Check if querying for a specific user (for university-admins viewing student details)
+	// Allow university-admins to query groups for a specific userId
+	if targetUserId := c.Query("userId"); targetUserId != "" && role == "university-admin" {
+		targetUserIdUint, err := strconv.ParseUint(targetUserId, 10, 32)
+		if err == nil {
+			// Query groups for the target user (where they are leader or member)
+			query = query.Where("user_id = ? OR id IN (SELECT group_id FROM user_groups WHERE user_id = ?)", uint(targetUserIdUint), uint(targetUserIdUint))
+		} else {
+			return c.Status(400).JSON(fiber.Map{"msg": "invalid userId parameter"})
+		}
+	} else {
+		// Default: Filter by current user's groups (user is leader or member)
+		query = query.Where("user_id = ? OR id IN (SELECT group_id FROM user_groups WHERE user_id = ?)", userID, userID)
+	}
 
 	if err := query.Preload("User").Preload("Members").Find(&groups).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get groups: " + err.Error()})

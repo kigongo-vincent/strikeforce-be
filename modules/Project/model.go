@@ -70,4 +70,7 @@ type Project struct {
 	User                   user.User             `json:"user" gorm:"foreignKey:UserID"`
 	SupervisorID           *uint                 `json:"supervisorId,omitempty"` // Optional - nullable
 	Supervisor             *user.User            `json:"supervisor,omitempty" gorm:"foreignKey:SupervisorID"`
+	PartnerSignature       string                `json:"partnerSignature,omitempty" gorm:"type:text"` // Partner signature data URL
+	UniversityAdminSignature string              `json:"universityAdminSignature,omitempty" gorm:"type:text"` // University admin signature data URL
+	MOUURL                 string                `json:"mouUrl,omitempty" gorm:"type:varchar(500)"` // URL to MOU PDF on Cloudinary
 }

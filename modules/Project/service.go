@@ -62,6 +62,7 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		Capacity               uint     `json:"capacity"`
 		Status                 string   `json:"status"`
 		Attachments            []string `json:"attachments"`
+		PartnerSignature       string   `json:"partnerSignature,omitempty"` // Partner signature data URL
 	}
 
 	var req CreateRequest
@@ -90,6 +91,7 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		Capacity:               req.Capacity,
 		Status:                 req.Status,
 		UserID:                 c.Locals("user_id").(uint),
+		PartnerSignature:       req.PartnerSignature,
 		// SupervisorID is optional - will be set to 0 by default, but we'll omit it from insert
 	}
 
@@ -399,6 +401,14 @@ func UpdateStatus(c *fiber.Ctx, db *gorm.DB) error {
 	userID := c.Locals("user_id").(uint)
 	role, _ := c.Locals("role").(string)
 
+	// Parse request body for signature and MOU URL (if provided)
+	type UpdateStatusRequest struct {
+		UniversityAdminSignature string `json:"universityAdminSignature,omitempty"`
+		MOUURL                   string `json:"mouUrl,omitempty"`
+	}
+	var req UpdateStatusRequest
+	c.BodyParser(&req) // Ignore error if body is empty
+
 	ProjectID, _ := strconv.ParseUint(project, 10, 64)
 
 	var tmp Project
@@ -448,7 +458,37 @@ func UpdateStatus(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "invalid status. Must be one of: draft, published, in-progress, on-hold, completed, cancelled, pending, suspended"})
 	}
 
-	if err := db.Model(&tmp).Update("status", status).Error; err != nil {
+	// If approving (status = "published") and university-admin, require signature
+	if status == "published" && role == "university-admin" && req.UniversityAdminSignature == "" {
+		return c.Status(400).JSON(fiber.Map{"msg": "signature is required to approve a project"})
+	}
+
+	// Update project status, signature, and MOU URL if provided
+	updates := map[string]interface{}{
+		"status": status,
+	}
+	if req.UniversityAdminSignature != "" {
+		updates["university_admin_signature"] = req.UniversityAdminSignature
+	}
+	if req.MOUURL != "" {
+		updates["mou_url"] = req.MOUURL
+	}
+
+	// If deapproving (status = "draft"), delete MOU from Cloudinary and clear signatures
+	if status == "draft" {
+		// Delete MOU from Cloudinary if it exists
+		if tmp.MOUURL != "" {
+			if err := DeleteMOUFromCloudinary(tmp.MOUURL); err != nil {
+				// Log error but don't fail the status update
+				fmt.Printf("Warning: Failed to delete MOU from Cloudinary: %v\n", err)
+			}
+		}
+		// Clear MOU URL and signatures in database
+		updates["mou_url"] = ""
+		updates["university_admin_signature"] = ""
+	}
+
+	if err := db.Model(&tmp).Updates(updates).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to update project status"})
 	}
 

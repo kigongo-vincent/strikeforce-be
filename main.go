@@ -11,6 +11,7 @@ import (
 	auth "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Auth"
 	branch "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Branch"
 	chat "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Chat"
+	college "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/College"
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	invitation "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Invitation"
@@ -60,6 +61,7 @@ func main() {
 	organization.RegisterRoutes(apiV1, DB)
 	department.RegisterRRoutes(apiV1, DB)
 	branch.RegisterRoutes(apiV1, DB)
+	college.RegisterRoutes(apiV1, DB)
 	project.RegisterRoutes(apiV1, DB)
 	course.RegisterRoutes(apiV1, DB)
 	student.RegisterRoutes(apiV1, DB)
