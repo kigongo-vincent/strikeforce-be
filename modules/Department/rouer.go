@@ -19,7 +19,7 @@ func RegisterRRoutes(r fiber.Router, db *gorm.DB) {
 	})
 
 	// POST, PUT, DELETE endpoints only for university-admins
-	departmentsAdmin := r.Group("/departments", user.JWTProtect([]string{"university-admin", "super-admin"}))
+	departmentsAdmin := r.Group("/departments", user.JWTProtect([]string{"university-admin", "delegated-admin", "super-admin"}))
 
 	departmentsAdmin.Post("/", func(c *fiber.Ctx) error {
 		return Create(c, db)

@@ -24,7 +24,8 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	var UserID = c.Locals("user_id").(uint)
-	var OrgID = organization.FindById(db, UserID)
+	role, _ := c.Locals("role").(string)
+	var OrgID = organization.FindByIdForAdmin(db, UserID, role)
 
 	if OrgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to resolve organization"})

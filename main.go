@@ -6,13 +6,14 @@ import (
 	"os"
 
 	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/config"
-	analytics 	"github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Analytics"
+	analytics "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Analytics"
 	application "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Application"
 	auth "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Auth"
 	branch "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Branch"
 	chat "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Chat"
 	college "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/College"
 	course "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Course"
+	delegatedaccess "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/DelegatedAccess"
 	department "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Department"
 	invitation "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Invitation"
 	milestone "github.com/BVR-INNOVATION-GROUP/strike-force-backend/modules/Milestone"
@@ -71,6 +72,7 @@ func main() {
 	notification.RegisterRoutes(apiV1, DB)
 	application.RegisterRoutes(apiV1, DB)
 	invitation.RegisterRoutes(apiV1, DB)
+	delegatedaccess.RegisterRoutes(apiV1, DB)
 	analytics.RegisterRoutes(apiV1, DB)
 	supervisorrequest.RegisterRoutes(apiV1, DB)
 	portfolio.RegisterRoutes(apiV1, DB)

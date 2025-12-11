@@ -8,7 +8,7 @@ import (
 
 // RegisterRoutes registers invitation routes
 func RegisterRoutes(r fiber.Router, db *gorm.DB) {
-	invitations := r.Group("/invitations", user.JWTProtect([]string{"university-admin", "super-admin"}))
+	invitations := r.Group("/invitations", user.JWTProtect([]string{"university-admin", "delegated-admin", "super-admin"}))
 
 	invitations.Get("/", func(c *fiber.Ctx) error {
 		return GetAll(c, db)
@@ -40,4 +40,3 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 		return Accept(c, db)
 	})
 }
-

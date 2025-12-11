@@ -78,12 +78,12 @@ func transformOrganizationForResponse(org Organization) map[string]interface{} {
 
 // organizationCreateRequest represents the request payload for organization creation
 type organizationCreateRequest struct {
-	Name          string                 `json:"name"`
-	Type          string                 `json:"type"`
-	Address       string                 `json:"address"`
-	Website       string                 `json:"website"`
-	BrandColor    string                 `json:"brandColor"`
-	Description   string                 `json:"description"`
+	Name           string                 `json:"name"`
+	Type           string                 `json:"type"`
+	Address        string                 `json:"address"`
+	Website        string                 `json:"website"`
+	BrandColor     string                 `json:"brandColor"`
+	Description    string                 `json:"description"`
 	BillingProfile map[string]interface{} `json:"billingProfile"`
 }
 
@@ -600,8 +600,20 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(403).JSON(fiber.Map{"msg": "you don't have permission to delete this organization"})
 	}
 
+	// Store the user ID before deleting the organization
+	associatedUserID := org.UserID
+
 	if err := db.Delete(&org).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to delete organization: " + err.Error()})
+	}
+
+	// Delete the associated user (owner of the organization)
+	var associatedUser user.User
+	if err := db.First(&associatedUser, associatedUserID).Error; err == nil {
+		if err := db.Delete(&associatedUser).Error; err != nil {
+			// Log the error but don't fail the request since org is already deleted
+			log.Printf("Warning: failed to delete associated user %d: %v", associatedUserID, err)
+		}
 	}
 
 	return c.JSON(fiber.Map{"msg": "organization deleted successfully"})

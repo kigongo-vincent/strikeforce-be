@@ -37,7 +37,13 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 		return GetMessagesByThread(c, db)
 	})
 
-	// Parameterized routes come last
+	// Get messages by project ID (finds ASSIGNED application, gets group, then messages)
+	chats.Get("/project/:projectId", func(c *fiber.Ctx) error {
+		return GetMessagesByProject(c, db)
+	})
+
+	// Parameterized routes come last (for backward compatibility)
+	// This handles both /chats/:group and works as /chats/group/:groupId via params
 	chats.Get("/:group", func(c *fiber.Ctx) error {
 		return FindAll(c, db)
 	})

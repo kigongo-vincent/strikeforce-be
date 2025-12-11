@@ -7,7 +7,7 @@ import (
 )
 
 func RegisterRoutes(r fiber.Router, db *gorm.DB) {
-	requests := r.Group("/supervisor-requests", user.JWTProtect([]string{"student", "supervisor", "university-admin"}))
+	requests := r.Group("/supervisor-requests", user.JWTProtect([]string{"student", "supervisor", "university-admin", "delegated-admin"}))
 
 	requests.Get("/", func(c *fiber.Ctx) error {
 		return GetAll(c, db)
@@ -29,8 +29,3 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 		return Delete(c, db)
 	})
 }
-
-
-
-
-

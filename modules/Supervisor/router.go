@@ -7,7 +7,7 @@ import (
 )
 
 func RegisterRoutes(r fiber.Router, db *gorm.DB) {
-	supervisors := r.Group("/supervisors", user.JWTProtect([]string{"university-admin", "supervisor"}))
+	supervisors := r.Group("/supervisors", user.JWTProtect([]string{"university-admin", "delegated-admin", "supervisor"}))
 
 	supervisors.Get("/", func(c *fiber.Ctx) error {
 		return FindByDepartment(c, db)

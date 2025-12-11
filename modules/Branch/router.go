@@ -8,7 +8,7 @@ import (
 
 func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 	// GET endpoints accessible by partners and university-admins
-	branches := r.Group("/branches", user.JWTProtect([]string{"partner", "university-admin", "super-admin"}))
+	branches := r.Group("/branches", user.JWTProtect([]string{"partner", "university-admin", "delegated-admin", "super-admin"}))
 
 	branches.Get("/", func(c *fiber.Ctx) error {
 		return FindByOrg(c, db)
@@ -31,7 +31,7 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 	})
 
 	// POST, PUT, DELETE endpoints only for university-admins
-	branchesAdmin := r.Group("/branches", user.JWTProtect([]string{"university-admin", "super-admin"}))
+	branchesAdmin := r.Group("/branches", user.JWTProtect([]string{"university-admin", "delegated-admin", "super-admin"}))
 
 	branchesAdmin.Post("/", func(c *fiber.Ctx) error {
 		return Create(c, db)
@@ -45,4 +45,3 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 		return Delete(c, db)
 	})
 }
-

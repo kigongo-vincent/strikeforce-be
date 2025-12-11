@@ -204,7 +204,12 @@ func Login(c *fiber.Ctx, db *gorm.DB) error {
 		org, err := findOrganizationByUserID(db, foundUser.ID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				needsOrganizationSetup = true
+				// Organization doesn't exist - delete the user for cleanup
+				if deleteErr := db.Delete(&foundUser).Error; deleteErr != nil {
+					// Log error but continue to return appropriate response
+					fmt.Printf("Warning: failed to delete orphaned user %d: %v\n", foundUser.ID, deleteErr)
+				}
+				return c.Status(401).JSON(fiber.Map{"msg": "user account has been removed"})
 			} else {
 				return c.Status(500).JSON(fiber.Map{"msg": "failed to load organization"})
 			}
@@ -252,6 +257,41 @@ func Login(c *fiber.Ctx, db *gorm.DB) error {
 				foundUser.OrgID = &orgID
 			}
 		}
+	} else if foundUser.Role == "delegated-admin" {
+		// For delegated admins, find org through delegated_access table
+		var orgID uint
+		if err := db.Table("delegated_accesses").
+			Where("delegated_user_id = ? AND is_active = ?", foundUser.ID, true).
+			Select("organization_id").
+			Scan(&orgID).Error; err == nil && orgID > 0 {
+			var org OrganizationRow
+			if err := db.Table("organizations").Where("id = ?", orgID).First(&org).Error; err == nil {
+				organizationPayload = buildOrganizationResponse(&org, foundUser.Email)
+				foundUser.OrgID = &orgID
+
+				if !org.IsApproved {
+					return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+						"msg":   "organization pending approval",
+						"error": "ORGANIZATION_PENDING_APPROVAL",
+						"data": fiber.Map{
+							"organization": organizationPayload,
+						},
+					})
+				}
+			} else {
+				// Organization not found - delete the user for cleanup
+				if deleteErr := db.Delete(&foundUser).Error; deleteErr != nil {
+					fmt.Printf("Warning: failed to delete orphaned delegated user %d: %v\n", foundUser.ID, deleteErr)
+				}
+				return c.Status(401).JSON(fiber.Map{"msg": "user account has been removed"})
+			}
+		} else {
+			// No active delegation found - delete the user for cleanup
+			if deleteErr := db.Delete(&foundUser).Error; deleteErr != nil {
+				fmt.Printf("Warning: failed to delete orphaned delegated user %d: %v\n", foundUser.ID, deleteErr)
+			}
+			return c.Status(401).JSON(fiber.Map{"msg": "user account has been removed"})
+		}
 	}
 
 	token, tokenErr := GenerateToken(foundUser)
@@ -282,6 +322,7 @@ func Login(c *fiber.Ctx, db *gorm.DB) error {
 func SignUp(c *fiber.Ctx, db *gorm.DB) error {
 
 	var user User
+	var tmpPassword = user.Password
 
 	// Parse incoming JSON first
 	if err := c.BodyParser(&user); err != nil {
@@ -319,7 +360,7 @@ func SignUp(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	// return c.Status(201).JSON(fiber.Map{"msg": "account created successfully"})
-
+	user.Password = tmpPassword
 	return Login(c, db)
 
 }
@@ -500,8 +541,35 @@ func RemoveFromGroup(c *fiber.Ctx, db *gorm.DB) error {
 // transformGroupToFrontendFormat converts backend Group to frontend format
 func transformGroupToFrontendFormat(group Group) map[string]interface{} {
 	memberIDs := make([]uint, 0, len(group.Members))
+	memberDetails := make([]map[string]interface{}, 0, len(group.Members))
+
 	for _, member := range group.Members {
 		memberIDs = append(memberIDs, member.ID)
+		// Include member details for team member display
+		memberDetails = append(memberDetails, map[string]interface{}{
+			"id":    member.ID,
+			"name":  member.Name,
+			"email": member.Email,
+			"profile": map[string]interface{}{
+				"avatar":   member.Profile.Avatar,
+				"bio":      member.Profile.Bio,
+				"phone":    member.Profile.Phone,
+				"location": member.Profile.Location,
+			},
+		})
+	}
+
+	// Include leader details
+	leaderDetails := map[string]interface{}{
+		"id":    group.User.ID,
+		"name":  group.User.Name,
+		"email": group.User.Email,
+		"profile": map[string]interface{}{
+			"avatar":   group.User.Profile.Avatar,
+			"bio":      group.User.Profile.Bio,
+			"phone":    group.User.Profile.Phone,
+			"location": group.User.Profile.Location,
+		},
 	}
 
 	return map[string]interface{}{
@@ -509,6 +577,8 @@ func transformGroupToFrontendFormat(group Group) map[string]interface{} {
 		"courseId":  0,            // Will be set from User's CourseID if needed
 		"leaderId":  group.UserID, // UserID is the leader
 		"memberIds": memberIDs,
+		"members":   memberDetails, // Include full member details
+		"user":      leaderDetails, // Include leader details
 		"name":      group.Name,
 		"capacity":  group.Capacity,
 		"createdAt": group.CreatedAt,
@@ -536,7 +606,7 @@ func GetAllGroups(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Check if querying for a specific user (for university-admins viewing student details)
 	// Allow university-admins to query groups for a specific userId
-	if targetUserId := c.Query("userId"); targetUserId != "" && role == "university-admin" {
+	if targetUserId := c.Query("userId"); targetUserId != "" && (role == "university-admin" || role == "delegated-admin") {
 		targetUserIdUint, err := strconv.ParseUint(targetUserId, 10, 32)
 		if err == nil {
 			// Query groups for the target user (where they are leader or member)
@@ -806,6 +876,34 @@ func SearchUsers(c *fiber.Ctx, db *gorm.DB) error {
 	}
 	query = query.Where("role = ?", role)
 
+	// Filter by universityId if provided (for students - filter by same university)
+	if universityId := c.Query("universityId"); universityId != "" && role == "student" {
+		universityID, err := strconv.ParseUint(universityId, 10, 64)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"msg": "invalid university ID"})
+		}
+
+		// Find students through course -> department -> organization relationship
+		// Get all course IDs for departments in this organization
+		var courseIds []uint
+		if err := db.Table("courses").
+			Select("courses.id").
+			Joins("JOIN departments ON courses.department_id = departments.id").
+			Where("departments.organization_id = ?", universityID).
+			Pluck("courses.id", &courseIds).Error; err != nil {
+			return c.Status(400).JSON(fiber.Map{"msg": "failed to get courses for university"})
+		}
+
+		// If no courses found for this university, return empty result
+		if len(courseIds) == 0 {
+			return c.JSON(fiber.Map{"data": []User{}})
+		}
+
+		// Filter users by students in those courses
+		query = query.Joins("JOIN students ON users.id = students.user_id").
+			Where("students.course_id IN ?", courseIds)
+	}
+
 	// Search by name or email (case-insensitive)
 	// Only apply search filter if search query is provided
 	if search := c.Query("search"); search != "" && strings.TrimSpace(search) != "" {
@@ -917,7 +1015,7 @@ func UpdateUser(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Check permission (user can update themselves, or admin can update anyone)
 	role := c.Locals("role").(string)
-	if usr.ID != userID && role != "super-admin" && role != "university-admin" {
+	if usr.ID != userID && role != "super-admin" && role != "university-admin" && role != "delegated-admin" {
 		return c.Status(403).JSON(fiber.Map{"msg": "you don't have permission to update this user"})
 	}
 

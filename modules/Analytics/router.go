@@ -15,13 +15,8 @@ func RegisterRoutes(r fiber.Router, db *gorm.DB) {
 	})
 
 	// University admin analytics endpoint
-	universityAnalytics := r.Group("/analytics/university", user.JWTProtect([]string{"university-admin"}))
+	universityAnalytics := r.Group("/analytics/university", user.JWTProtect([]string{"university-admin", "delegated-admin"}))
 	universityAnalytics.Get("/:id", func(c *fiber.Ctx) error {
 		return GetUniversityAdminAnalytics(c, db)
 	})
 }
-
-
-
-
-

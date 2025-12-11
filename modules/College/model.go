@@ -14,3 +14,6 @@ type College struct {
 	Organization   organization.Organization `json:"organization" gorm:"foreignKey:OrganizationID"`
 }
 
+
+
+

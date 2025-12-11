@@ -20,7 +20,9 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "branch name is required"})
 	}
 
-	OrgID := organization.FindById(db, c.Locals("user_id").(uint))
+	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
+	OrgID := organization.FindByIdForAdmin(db, userID, role)
 
 	if OrgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to add branch to organization"})
@@ -57,12 +59,13 @@ func FindByOrg(c *fiber.Ctx, db *gorm.DB) error {
 		}
 		OrgID = uint(universityIdUint)
 	} else {
-		// For university-admin, get organization from logged-in user
-		var uni organization.Organization
-		if err := db.Where("user_id = ?", c.Locals("user_id").(uint)).First(&uni).Error; err != nil {
+		// For university-admin or delegated-admin, get organization
+		userID := c.Locals("user_id").(uint)
+		role, _ := c.Locals("role").(string)
+		OrgID = organization.FindByIdForAdmin(db, userID, role)
+		if OrgID == 0 {
 			return c.Status(400).JSON(fiber.Map{"msg": "failed to get organization. Please provide organizationId or universityId query parameter"})
 		}
-		OrgID = uni.ID
 	}
 
 	var branches []Branch
@@ -100,7 +103,8 @@ func Update(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find branch"})
 	}
 
-	orgID := organization.FindById(db, userID)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(403).JSON(fiber.Map{"msg": "unable to resolve your organization"})
 	}
@@ -146,7 +150,8 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find branch"})
 	}
 
-	orgID := organization.FindById(db, userID)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(403).JSON(fiber.Map{"msg": "unable to resolve your organization"})
 	}
@@ -171,26 +176,27 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 // GetStats returns statistics for branches
 func GetStats(c *fiber.Ctx, db *gorm.DB) error {
 	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
 
-	var uni organization.Organization
-	if err := db.Where("user_id = ?", userID).First(&uni).Error; err != nil {
+	orgID := organization.FindByIdForAdmin(db, userID, role)
+	if orgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get organization"})
 	}
 
 	var totalBranches int64
-	db.Model(&Branch{}).Where("organization_id = ?", uni.ID).Count(&totalBranches)
+	db.Model(&Branch{}).Where("organization_id = ?", orgID).Count(&totalBranches)
 
 	var totalStudents int64
 	db.Table("students").
 		Joins("LEFT JOIN branches ON students.branch_id = branches.id").
-		Where("branches.organization_id = ?", uni.ID).
+		Where("branches.organization_id = ?", orgID).
 		Count(&totalStudents)
 
 	var totalProjects int64
 	db.Table("projects").
 		Joins("INNER JOIN students ON projects.user_id = students.user_id").
 		Joins("LEFT JOIN branches ON students.branch_id = branches.id").
-		Where("branches.organization_id = ?", uni.ID).
+		Where("branches.organization_id = ?", orgID).
 		Count(&totalProjects)
 
 	stats := fiber.Map{
@@ -205,9 +211,10 @@ func GetStats(c *fiber.Ctx, db *gorm.DB) error {
 // GetStudentsByBranch returns data for students by branch graph
 func GetStudentsByBranch(c *fiber.Ctx, db *gorm.DB) error {
 	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
 
-	var uni organization.Organization
-	if err := db.Where("user_id = ?", userID).First(&uni).Error; err != nil {
+	orgID := organization.FindByIdForAdmin(db, userID, role)
+	if orgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get organization"})
 	}
 
@@ -220,7 +227,7 @@ func GetStudentsByBranch(c *fiber.Ctx, db *gorm.DB) error {
 	db.Table("branches").
 		Select("branches.name as branch_name, COUNT(students.id) as count").
 		Joins("LEFT JOIN students ON students.branch_id = branches.id").
-		Where("branches.organization_id = ?", uni.ID).
+		Where("branches.organization_id = ?", orgID).
 		Group("branches.id, branches.name").
 		Order("count DESC").
 		Scan(&results)
@@ -240,9 +247,10 @@ func GetStudentsByBranch(c *fiber.Ctx, db *gorm.DB) error {
 // GetProjectsByBranch returns data for projects by branch graph
 func GetProjectsByBranch(c *fiber.Ctx, db *gorm.DB) error {
 	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
 
-	var uni organization.Organization
-	if err := db.Where("user_id = ?", userID).First(&uni).Error; err != nil {
+	orgID := organization.FindByIdForAdmin(db, userID, role)
+	if orgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to get organization"})
 	}
 
@@ -256,7 +264,7 @@ func GetProjectsByBranch(c *fiber.Ctx, db *gorm.DB) error {
 		Select("branches.name as branch_name, COUNT(DISTINCT projects.id) as count").
 		Joins("LEFT JOIN students ON students.branch_id = branches.id").
 		Joins("LEFT JOIN projects ON projects.user_id = students.user_id").
-		Where("branches.organization_id = ?", uni.ID).
+		Where("branches.organization_id = ?", orgID).
 		Group("branches.id, branches.name").
 		Order("count DESC").
 		Scan(&results)
@@ -272,4 +280,3 @@ func GetProjectsByBranch(c *fiber.Ctx, db *gorm.DB) error {
 
 	return c.JSON(fiber.Map{"data": data})
 }
-

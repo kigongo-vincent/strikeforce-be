@@ -36,6 +36,10 @@ func JWTProtect(allowedroles []string) fiber.Handler {
 			if roleClaim == r || r == "*" {
 				allowed = true
 			}
+			// Allow delegated-admin to access university-admin routes
+			if roleClaim == "delegated-admin" && r == "university-admin" {
+				allowed = true
+			}
 		}
 
 		if !allowed {

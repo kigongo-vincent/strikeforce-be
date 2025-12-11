@@ -428,14 +428,23 @@ func UpdateStatus(c *fiber.Ctx, db *gorm.DB) error {
 			if tmp.UserID != userID {
 				return c.Status(403).JSON(fiber.Map{"msg": "you don't have permission to update this project status"})
 			}
-		} else if role == "university-admin" {
-			// University admin can only update projects in their university
-			// Get user's organization ID by querying organizations table
+		} else if role == "university-admin" || role == "delegated-admin" {
+			// University admin and delegated admin can only update projects in their university
+			// Get user's organization ID
 			var userOrgID uint
-			if err := db.Table("organizations").
-				Where("user_id = ?", userID).
-				Select("id").
-				Scan(&userOrgID).Error; err != nil {
+			var err error
+			if role == "delegated-admin" {
+				err = db.Table("delegated_accesses").
+					Where("delegated_user_id = ? AND is_active = ?", userID, true).
+					Select("organization_id").
+					Scan(&userOrgID).Error
+			} else {
+				err = db.Table("organizations").
+					Where("user_id = ?", userID).
+					Select("id").
+					Scan(&userOrgID).Error
+			}
+			if err != nil {
 				return c.Status(400).JSON(fiber.Map{"msg": "failed to get user organization"})
 			}
 			// Check if project's department belongs to user's organization
@@ -459,7 +468,7 @@ func UpdateStatus(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	// If approving (status = "published") and university-admin, require signature
-	if status == "published" && role == "university-admin" && req.UniversityAdminSignature == "" {
+	if status == "published" && (role == "university-admin" || role == "delegated-admin") && req.UniversityAdminSignature == "" {
 		return c.Status(400).JSON(fiber.Map{"msg": "signature is required to approve a project"})
 	}
 
@@ -537,13 +546,22 @@ func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 	query := db.Model(&Project{})
 
 	// For students, only show published (approved) projects
-	role, _ := c.Locals("role").(string)
-	if role == "student" {
+	// Always enforce published status for students, regardless of query params
+	role, ok := c.Locals("role").(string)
+	statusParam := c.Query("status")
+
+	// Always filter to published projects for students
+	// Also filter if status param is explicitly "published" (for extra safety)
+	if ok && role == "student" {
+		// Students can only see published projects - ignore any status query param
+		query = query.Where("status = ?", "published")
+	} else if statusParam == "published" {
+		// If status param is explicitly "published", enforce it regardless of role
 		query = query.Where("status = ?", "published")
 	} else {
-		// Filter by status for other roles
-		if status := c.Query("status"); status != "" {
-			query = query.Where("status = ?", status)
+		// Filter by status for other roles if provided
+		if statusParam != "" {
+			query = query.Where("status = ?", statusParam)
 		}
 	}
 

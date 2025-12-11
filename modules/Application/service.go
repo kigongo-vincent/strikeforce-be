@@ -15,6 +15,29 @@ import (
 	"gorm.io/gorm"
 )
 
+// getOrganizationIDForAdmin gets the organization ID for university-admin or delegated-admin
+func getOrganizationIDForAdmin(db *gorm.DB, userID uint, role string) (uint, error) {
+	var userOrgID uint
+	if role == "delegated-admin" {
+		// For delegated-admin, get org through delegated_accesses table
+		if err := db.Table("delegated_accesses").
+			Where("delegated_user_id = ? AND is_active = ?", userID, true).
+			Select("organization_id").
+			Scan(&userOrgID).Error; err != nil {
+			return 0, err
+		}
+	} else {
+		// For university-admin, get org directly
+		if err := db.Table("organizations").
+			Where("user_id = ?", userID).
+			Select("id").
+			Scan(&userOrgID).Error; err != nil {
+			return 0, err
+		}
+	}
+	return userOrgID, nil
+}
+
 // GetAll retrieves all applications with optional filters
 func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 	var applications []Application
@@ -44,14 +67,11 @@ func GetAll(c *fiber.Ctx, db *gorm.DB) error {
 		// Join with projects table and filter by user_id (project owner)
 		query = query.Joins("JOIN projects ON applications.project_id = projects.id").
 			Where("projects.user_id = ?", userID)
-	} else if role == "university-admin" {
-		// University admins can see all applications for projects in their university
+	} else if role == "university-admin" || role == "delegated-admin" {
+		// University admins and delegated admins can see all applications for projects in their university
 		// Get user's organization ID
-		var userOrgID uint
-		if err := db.Table("organizations").
-			Where("user_id = ?", userID).
-			Select("id").
-			Scan(&userOrgID).Error; err != nil {
+		userOrgID, err := getOrganizationIDForAdmin(db, userID, role)
+		if err != nil {
 			// If no organization found, return empty results
 			return c.JSON(fiber.Map{"data": []Application{}})
 		}
@@ -213,14 +233,11 @@ func Update(c *fiber.Ctx, db *gorm.DB) error {
 		if application.Project.UserID == userID {
 			canUpdate = true
 		}
-	} else if role == "university-admin" {
-		// University admins can update applications for projects in their university
+	} else if role == "university-admin" || role == "delegated-admin" {
+		// University admins and delegated admins can update applications for projects in their university
 		// Get user's organization ID
-		var userOrgID uint
-		if err := db.Table("organizations").
-			Where("user_id = ?", userID).
-			Select("id").
-			Scan(&userOrgID).Error; err == nil {
+		userOrgID, err := getOrganizationIDForAdmin(db, userID, role)
+		if err == nil {
 			// Get project's department to check organization
 			var deptOrgID uint
 			if err := db.Table("departments").
@@ -342,12 +359,9 @@ func ScoreApplication(c *fiber.Ctx, db *gorm.DB) error {
 		if application.Project.UserID == userID {
 			canScore = true
 		}
-	} else if role == "university-admin" {
-		var userOrgID uint
-		if err := db.Table("organizations").
-			Where("user_id = ?", userID).
-			Select("id").
-			Scan(&userOrgID).Error; err == nil {
+	} else if role == "university-admin" || role == "delegated-admin" {
+		userOrgID, err := getOrganizationIDForAdmin(db, userID, role)
+		if err == nil {
 			var deptOrgID uint
 			if err := db.Table("departments").
 				Where("id = ?", application.Project.DepartmentID).
@@ -431,12 +445,9 @@ func updateApplicationStatus(c *fiber.Ctx, db *gorm.DB, newStatus string) error 
 		if application.Project.UserID == userID {
 			canUpdate = true
 		}
-	} else if role == "university-admin" {
-		var userOrgID uint
-		if err := db.Table("organizations").
-			Where("user_id = ?", userID).
-			Select("id").
-			Scan(&userOrgID).Error; err == nil {
+	} else if role == "university-admin" || role == "delegated-admin" {
+		userOrgID, err := getOrganizationIDForAdmin(db, userID, role)
+		if err == nil {
 			var deptOrgID uint
 			if err := db.Table("departments").
 				Where("id = ?", application.Project.DepartmentID).
@@ -562,12 +573,9 @@ func OfferApplication(c *fiber.Ctx, db *gorm.DB) error {
 		if application.Project.UserID == userID {
 			canOffer = true
 		}
-	} else if role == "university-admin" {
-		var userOrgID uint
-		if err := db.Table("organizations").
-			Where("user_id = ?", userID).
-			Select("id").
-			Scan(&userOrgID).Error; err == nil {
+	} else if role == "university-admin" || role == "delegated-admin" {
+		userOrgID, err := getOrganizationIDForAdmin(db, userID, role)
+		if err == nil {
 			var deptOrgID uint
 			if err := db.Table("departments").
 				Where("id = ?", application.Project.DepartmentID).
@@ -658,13 +666,64 @@ func OfferApplication(c *fiber.Ctx, db *gorm.DB) error {
 		application.GroupID = &group.ID
 	} else {
 		// For GROUP applications, verify the group still exists
-		var groupCount int64
-		if err := db.Model(&user.Group{}).Where("id = ?", application.GroupID).Count(&groupCount).Error; err != nil {
-			return c.Status(400).JSON(fiber.Map{"msg": "failed to validate group"})
+		var existingGroup user.Group
+		if err := db.First(&existingGroup, application.GroupID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				// Group was deleted, create a new one
+				// Extract student IDs from the application
+				var studentIDs []uint
+				if err := json.Unmarshal(application.StudentIDs, &studentIDs); err != nil {
+					return c.Status(400).JSON(fiber.Map{"msg": "failed to parse student IDs"})
+				}
+
+				if len(studentIDs) == 0 {
+					return c.Status(400).JSON(fiber.Map{"msg": "application must have at least one student"})
+				}
+
+				// Get the first student (leader)
+				var student user.User
+				if err := db.First(&student, studentIDs[0]).Error; err != nil {
+					return c.Status(400).JSON(fiber.Map{"msg": "student not found"})
+				}
+
+				// Create a new group for the application
+				groupName := fmt.Sprintf("%s - %s", student.Name, application.Project.Title)
+				if len(groupName) > 100 {
+					groupName = groupName[:100] // Truncate if too long
+				}
+
+				group := user.Group{
+					UserID:   studentIDs[0], // First student is the leader
+					Name:     groupName,
+					Capacity: len(studentIDs),
+				}
+
+				if err := db.Create(&group).Error; err != nil {
+					return c.Status(400).JSON(fiber.Map{"msg": "failed to create group for application: " + err.Error()})
+				}
+
+				// Add all students as members
+				var members []user.User
+				for _, studentID := range studentIDs {
+					var member user.User
+					if err := db.First(&member, studentID).Error; err == nil {
+						members = append(members, member)
+					}
+				}
+
+				if len(members) > 0 {
+					if err := db.Model(&group).Association("Members").Append(members); err != nil {
+						return c.Status(400).JSON(fiber.Map{"msg": "failed to add members to group: " + err.Error()})
+					}
+				}
+
+				// Link the new group to the application
+				application.GroupID = &group.ID
+			} else {
+				return c.Status(400).JSON(fiber.Map{"msg": "failed to validate group"})
+			}
 		}
-		if groupCount == 0 {
-			return c.Status(404).JSON(fiber.Map{"msg": "group not found. Please reassign the application."})
-		}
+		// Group exists, continue
 	}
 
 	// Update application status to ASSIGNED (immediate assignment, no offer/accept flow)
@@ -717,7 +776,7 @@ func AcceptOffer(c *fiber.Ctx, db *gorm.DB) error {
 		if !isApplicant {
 			return c.Status(403).JSON(fiber.Map{"msg": "you can only accept offers for your own applications"})
 		}
-	} else if role != "super-admin" && role != "university-admin" && role != "partner" {
+	} else if role != "super-admin" && role != "university-admin" && role != "delegated-admin" && role != "partner" {
 		return c.Status(403).JSON(fiber.Map{"msg": "only students can accept offers"})
 	}
 

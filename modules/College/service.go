@@ -21,7 +21,9 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "college name is required"})
 	}
 
-	orgID := organization.FindById(db, c.Locals("user_id").(uint))
+	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to add college to organization"})
 	}
@@ -57,11 +59,13 @@ func FindByOrg(c *fiber.Ctx, db *gorm.DB) error {
 		}
 		orgID = uint(universityIdUint)
 	} else {
-		var uni organization.Organization
-		if err := db.Where("user_id = ?", c.Locals("user_id").(uint)).First(&uni).Error; err != nil {
+		// For university-admin or delegated-admin, get organization
+		userID := c.Locals("user_id").(uint)
+		role, _ := c.Locals("role").(string)
+		orgID = organization.FindByIdForAdmin(db, userID, role)
+		if orgID == 0 {
 			return c.Status(400).JSON(fiber.Map{"msg": "failed to get organization. Please provide organizationId or universityId query parameter"})
 		}
-		orgID = uni.ID
 	}
 
 	var colleges []College
@@ -100,7 +104,8 @@ func Update(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find college"})
 	}
 
-	orgID := organization.FindById(db, userID)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(403).JSON(fiber.Map{"msg": "unable to resolve your organization"})
 	}
@@ -145,7 +150,8 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find college"})
 	}
 
-	orgID := organization.FindById(db, userID)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(403).JSON(fiber.Map{"msg": "unable to resolve your organization"})
 	}
@@ -166,4 +172,3 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 
 	return c.JSON(fiber.Map{"msg": "college deleted successfully"})
 }
-

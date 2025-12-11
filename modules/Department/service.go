@@ -17,7 +17,9 @@ func Create(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "invalid department details"})
 	}
 
-	OrgID := organization.FindById(db, c.Locals("user_id").(uint))
+	userID := c.Locals("user_id").(uint)
+	role, _ := c.Locals("role").(string)
+	OrgID := organization.FindByIdForAdmin(db, userID, role)
 
 	if OrgID == 0 {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to add department to organization"})
@@ -85,12 +87,13 @@ func FindByOrg(c *fiber.Ctx, db *gorm.DB) error {
 		}
 		OrgID = uint(universityIdUint)
 	} else {
-		// For university-admin, get organization from logged-in user
-		var uni organization.Organization
-		if err := db.Where("user_id = ?", c.Locals("user_id").(uint)).First(&uni).Error; err != nil {
+		// For university-admin or delegated-admin, get organization
+		userID := c.Locals("user_id").(uint)
+		role, _ := c.Locals("role").(string)
+		OrgID = organization.FindByIdForAdmin(db, userID, role)
+		if OrgID == 0 {
 			return c.Status(400).JSON(fiber.Map{"msg": "failed to get organization. Please provide organizationId or universityId query parameter"})
 		}
-		OrgID = uni.ID
 	}
 
 	var depts []Department
@@ -130,7 +133,8 @@ func Update(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find department"})
 	}
 
-	orgID := organization.FindById(db, userID)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(403).JSON(fiber.Map{"msg": "unable to resolve your organization"})
 	}
@@ -205,7 +209,8 @@ func Delete(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(400).JSON(fiber.Map{"msg": "failed to find department"})
 	}
 
-	orgID := organization.FindById(db, userID)
+	role, _ := c.Locals("role").(string)
+	orgID := organization.FindByIdForAdmin(db, userID, role)
 	if orgID == 0 {
 		return c.Status(403).JSON(fiber.Map{"msg": "unable to resolve your organization"})
 	}
